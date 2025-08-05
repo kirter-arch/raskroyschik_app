@@ -30,6 +30,8 @@ def reset_input_fields():
 # --- Описание интерфейса ---
 st.title('Раскройщик тонировочной пленки')
 
+st.info('Приложение работает на бесплатном сервере, поэтому первая загрузка может занять до нескольких минут. Пожалуйста, подождите.')
+
 st.header('Параметры рулона:')
 roll_width = st.number_input('Ширина (см):', key='roll_width_input', value=152, min_value=1, step=1, format="%d")
 roll_length = st.number_input('Длина (см):', key='roll_length_input', value=3000, min_value=1, step=1, format="%d")
