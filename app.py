@@ -2,14 +2,18 @@ import PySimpleGUI as sg
 from rectpack import newPacker
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import csv
+from datetime import datetime
 
 # --- Список для хранения деталей, которые нужно раскроить ---
 parts_list = []
 
-# --- Глобальные переменные для визуализации ---
+# --- Глобальные переменные для визуализации и результатов ---
 fig = None
 canvas_elem = None
 canvas = None
+last_calculation_results = []
+summary_results = {}
 
 # ---- Описание интерфейса ----
 layout = [
@@ -23,29 +27,29 @@ layout = [
     [sg.Text('Количество:', size=(10, 1)), sg.Input(key='-PART_QUANTITY-', default_text='1', size=(5, 1))],
     [sg.Button('Добавить деталь', key='-ADD_PART-')],
     [sg.HorizontalSeparator()],
-    [sg.Button('Рассчитать', key='-CALCULATE-'), sg.Button('Очистить', key='-CLEAR-'), sg.Button('Удалить выбранную', key='-DELETE-'), sg.Button('Выйти')],
+    [sg.Button('Рассчитать', key='-CALCULATE-'), sg.Button('Очистить', key='-CLEAR-'), sg.Button('Удалить выбранную', key='-DELETE-')],
+    [sg.Button('Сохранить в CSV', key='-SAVE_CSV-'), sg.Button('Выйти')],
     [sg.Text('Список добавленных деталей:', font=('Helvetica', 12))],
     [sg.Listbox(values=[], size=(40, 6), key='-PARTS_LISTBOX-', enable_events=True)],
     [sg.HorizontalSeparator()],
     [sg.Text('Результат раскроя:', font=('Helvetica', 16))],
     [sg.Output(size=(60, 10), key='-OUTPUT-')],
-    [sg.Canvas(key='-CANVAS-')] # <-- Новый элемент: холст для визуализации
+    [sg.Canvas(key='-CANVAS-')]
 ]
 
 # ---- Создание окна ----
 window = sg.Window('Раскройщик тонировочной пленки', layout, finalize=True)
 
-# ---- Инициализация холста Matplotlib ----
 def draw_figure(canvas, figure):
-    """Рисует фигуру Matplotlib на холсте PySimpleGUI."""
     global canvas_elem
+    if canvas_elem:
+        canvas_elem.get_tk_widget().destroy()
     canvas_elem = FigureCanvasTkAgg(figure, canvas)
     canvas_elem.draw()
     canvas_elem.get_tk_widget().pack(side='top', fill='both', expand=1)
 
-# ---- Функция для обновления Listbox ----
 def update_parts_listbox(window, parts_list):
-    display_list = [f'Деталь: {w}x{h} см, Количество: {q} шт.' for w, h, q in parts_list]
+    display_list = [f'Деталь: {int(w)}x{int(h)} см, Количество: {q} шт.' for w, h, q in parts_list]
     window['-PARTS_LISTBOX-'].update(display_list)
 
 # ---- Цикл обработки событий ----
@@ -81,11 +85,9 @@ while True:
         window['-ROLL_WIDTH-'].update('152')
         window['-ROLL_LENGTH-'].update('3000')
         window['-OUTPUT-'].update('')
-        # Очищаем холст
         if canvas_elem:
             canvas_elem.get_tk_widget().destroy()
-            canvas_elem = None
-        
+            
     if event == '-DELETE-':
         selected_indices = values['-PARTS_LISTBOX-']
         if selected_indices:
@@ -131,6 +133,8 @@ while True:
             ax.set_title("Схема раскроя")
             ax.set_xlabel("Ширина (см)")
             ax.set_ylabel("Длина (см)")
+
+            last_calculation_results = []
             
             for abin in packer:
                 abin_used_length = 0
@@ -140,24 +144,35 @@ while True:
                     
                     center_x = rect.x + rect.width / 2
                     center_y = rect.y + rect.height / 2
+                    ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8)
                     
-                    # --- ИЗМЕНЕНИЕ 1: Преобразуем в int для вывода ---
-                    ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8) 
-                    
-                    # --- ИЗМЕНЕНИЕ 2: Преобразуем в int для вывода ---
-                    print(f"  Деталь: {int(rect.width)}x{int(rect.height)} см") 
+                    print(f"  Деталь: {int(rect.width)}x{int(rect.height)} см")
                     abin_used_length = max(abin_used_length, rect.y + rect.height)
                     abin_used_area += rect.width * rect.height
-                
+                    
+                    # --- ИЗМЕНЕНИЕ 1: Собираем данные для экспорта, включая погонные метры (длину) ---
+                    last_calculation_results.append({
+                        'part_width_cm': int(rect.width),
+                        'part_length_cm': int(rect.height),
+                        'part_area_sq_m': (rect.width * rect.height) / 10000,
+                        'part_running_meters': rect.height / 100 # Длина детали в метрах
+                    })
+
                 total_used_area += abin_used_area
-                efficiency = (abin_used_area / (abin.width * abin.height)) * 100
+                abin_efficiency = (abin_used_area / (abin.width * abin.height)) * 100
                 print("-" * 20)
-                # --- ИЗМЕНЕНИЕ 3: Преобразуем в int для вывода ---
-                print(f"Рулон: {int(abin.width)}x{int(abin.height)} см ({abin.height / 100:.2f} м в рулоне)") 
+                print(f"Рулон: {int(abin.width)}x{int(abin.height)} см ({abin.height / 100:.2f} м в рулоне)")
                 print(f"Использовано погонных метров: {abin_used_length / 100:.2f} м")
                 print(f"Использовано квадратных метров: {abin_used_area / 10000:.2f} м²")
-                print(f"Эффективность раскроя: {efficiency:.2f}%")
+                print(f"Эффективность раскроя: {abin_efficiency:.2f}%")
                 print("=" * 30)
+
+                # --- ИЗМЕНЕНИЕ 2: Сохраняем общие результаты ---
+                summary_results['total_running_meters'] = abin_used_length / 100
+                summary_results['total_area_sq_m'] = abin_used_area / 10000
+                summary_results['efficiency'] = abin_efficiency
+                summary_results['roll_width'] = abin.width
+                summary_results['roll_length'] = abin.height
 
             draw_figure(window['-CANVAS-'].TKCanvas, fig)
             plt.close(fig)
@@ -166,6 +181,41 @@ while True:
             sg.popup_error('Пожалуйста, введите корректные числа для параметров рулона.')
         except Exception as e:
             sg.popup_error(f'Произошла ошибка при расчете: {e}')
+            
+    if event == '-SAVE_CSV-':
+        if not last_calculation_results:
+            sg.popup_error('Сначала выполните расчет, чтобы сохранить результаты.')
+            continue
+            
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = sg.popup_get_file('Сохранить файл как...', save_as=True, no_window=True, 
+                                           default_path=f'раскрой_{timestamp}.csv', file_types=(("CSV Files", "*.csv"),))
+
+            if filename:
+                with open(filename, 'w', newline='', encoding='utf-8') as f:
+                    # --- ИЗМЕНЕНИЕ 3: Обновленные заголовки для CSV (для деталей) ---
+                    fieldnames = ['part_width_cm', 'part_length_cm', 'part_area_sq_m', 'part_running_meters']
+                    writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=';')
+                    
+                    writer.writeheader()
+                    for row in last_calculation_results:
+                        writer.writerow(row)
+                    
+                    # --- ИЗМЕНЕНИЕ 4: Записываем общие результаты в конец файла ---
+                    if summary_results:
+                        f.write('\n\n')
+                        f.write('Общие результаты:\n')
+                        f.write(f'Ширина рулона (см);{int(summary_results["roll_width"])}\n')
+                        f.write(f'Длина рулона (см);{int(summary_results["roll_length"])}\n')
+                        f.write(f'Использовано погонных метров;{summary_results["total_running_meters"]:.2f} м\n')
+                        f.write(f'Использовано квадратных метров;{summary_results["total_area_sq_m"]:.2f} м²\n')
+                        f.write(f'Эффективность раскроя;{summary_results["efficiency"]:.2f}%\n')
+                
+                sg.popup(f'Результаты успешно сохранены в файл:\n{filename}')
+
+        except Exception as e:
+            sg.popup_error(f'Произошла ошибка при сохранении: {e}')
 
 # ---- Закрытие окна ----
 window.close()
