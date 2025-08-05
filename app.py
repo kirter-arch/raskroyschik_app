@@ -7,13 +7,14 @@ from datetime import datetime
 
 # --- Список для хранения створок, которые нужно раскроить ---
 parts_list = []
-
 # --- Глобальные переменные для визуализации и результатов ---
 fig = None
 canvas_elem = None
 canvas = None
 last_calculation_results = []
 summary_results = {}
+# --- ИЗМЕНЕНИЕ: Переменная для отслеживания редактируемого элемента ---
+edit_index = None
 
 # ---- Описание интерфейса ----
 layout = [
@@ -25,9 +26,12 @@ layout = [
     [sg.Text('Ширина (см):'), sg.Input(key='-PART_WIDTH-')],
     [sg.Text('Длина (см):'), sg.Input(key='-PART_LENGTH-')],
     [sg.Text('Количество:', size=(10, 1)), sg.Input(key='-PART_QUANTITY-', default_text='1', size=(5, 1))],
-    [sg.Button('Добавить створку', key='-ADD_PART-')],
+    # --- ИЗМЕНЕНИЕ: Добавляем кнопку "Обновить" и кнопку "Редактировать" ---
+    [sg.Button('Добавить створку', key='-ADD_PART-', size=(20,1)), 
+     sg.Button('Обновить створку', key='-UPDATE_PART-', size=(20,1), visible=False)],
     [sg.HorizontalSeparator()],
-    [sg.Button('Рассчитать', key='-CALCULATE-'), sg.Button('Очистить', key='-CLEAR-'), sg.Button('Удалить выбранную', key='-DELETE-')],
+    [sg.Button('Рассчитать', key='-CALCULATE-'), sg.Button('Очистить', key='-CLEAR-'), 
+     sg.Button('Удалить выбранную', key='-DELETE-'), sg.Button('Редактировать створку', key='-EDIT_PART-', disabled=True)],
     [sg.Button('Сохранить в CSV', key='-SAVE_CSV-'), sg.Button('Выйти')],
     [sg.Text('Список добавленных створок:', font=('Helvetica', 12))],
     [sg.Listbox(values=[], size=(40, 6), key='-PARTS_LISTBOX-', enable_events=True)],
@@ -52,6 +56,21 @@ def update_parts_listbox(window, parts_list):
     display_list = [f'Створка: {int(w)}x{int(h)} см, Количество: {q} шт.' for w, h, q in parts_list]
     window['-PARTS_LISTBOX-'].update(display_list)
 
+# --- ИЗМЕНЕНИЕ: Функция для сброса полей и состояния кнопок ---
+def reset_ui():
+    global edit_index
+    edit_index = None
+    window['-PART_WIDTH-'].update('')
+    window['-PART_LENGTH-'].update('')
+    window['-PART_QUANTITY-'].update('1')
+    window['-PART_WIDTH-'].update(disabled=False)
+    window['-PART_LENGTH-'].update(disabled=False)
+    window['-ADD_PART-'].update(visible=True)
+    window['-UPDATE_PART-'].update(visible=False)
+    window['-EDIT_PART-'].update(disabled=True)
+    window['-PARTS_LISTBOX-'].update(set_to_index=[], scroll_to_index=None)
+
+
 # ---- Цикл обработки событий ----
 while True:
     event, values = window.read()
@@ -59,10 +78,18 @@ while True:
     if event == sg.WIN_CLOSED or event == 'Выйти':
         break
 
+    # --- ИЗМЕНЕНИЕ: Обработка события выбора элемента в списке ---
+    if event == '-PARTS_LISTBOX-':
+        if values['-PARTS_LISTBOX-']:
+            window['-EDIT_PART-'].update(disabled=False)
+        else:
+            window['-EDIT_PART-'].update(disabled=True)
+
+    # --- ИЗМЕНЕНИЕ: Обработка добавления новой створки ---
     if event == '-ADD_PART-':
         try:
-            width = float(values['-PART_WIDTH-'])
-            height = float(values['-PART_LENGTH-'])
+            width = int(values['-PART_WIDTH-'])
+            height = int(values['-PART_LENGTH-'])
             quantity = int(values['-PART_QUANTITY-'])
             
             if width <= 0 or height <= 0 or quantity <= 0:
@@ -72,12 +99,38 @@ while True:
             parts_list.append((width, height, quantity))
             update_parts_listbox(window, parts_list)
 
-            window['-PART_WIDTH-'].update('')
-            window['-PART_LENGTH-'].update('')
-            window['-PART_QUANTITY-'].update('1')
+            reset_ui()
 
         except (ValueError, IndexError):
             sg.popup_error('Пожалуйста, введите корректные числа для ширины, длины и количества.')
+
+    # --- ИЗМЕНЕНИЕ: Обработка нажатия на кнопку "Редактировать" ---
+    if event == '-EDIT_PART-':
+        if values['-PARTS_LISTBOX-']:
+            edit_index = window['-PARTS_LISTBOX-'].get_indexes()[0]
+            part_to_edit = parts_list[edit_index]
+            window['-PART_WIDTH-'].update(part_to_edit[0], disabled=True)
+            window['-PART_LENGTH-'].update(part_to_edit[1], disabled=True)
+            window['-PART_QUANTITY-'].update(part_to_edit[2])
+            window['-ADD_PART-'].update(visible=False)
+            window['-UPDATE_PART-'].update(visible=True)
+            
+    # --- ИЗМЕНЕНИЕ: Обработка нажатия на кнопку "Обновить" ---
+    if event == '-UPDATE_PART-':
+        try:
+            new_quantity = int(values['-PART_QUANTITY-'])
+            if new_quantity <= 0:
+                sg.popup_error('Количество должно быть положительным числом.')
+                
+            
+            # Обновляем количество в списке деталей
+            parts_list[edit_index] = (parts_list[edit_index][0], parts_list[edit_index][1], new_quantity)
+            update_parts_listbox(window, parts_list)
+            
+            reset_ui()
+            
+        except (ValueError, IndexError):
+            sg.popup_error('Пожалуйста, введите корректное число для количества.')
 
     if event == '-CLEAR-':
         parts_list.clear()
@@ -87,6 +140,7 @@ while True:
         window['-OUTPUT-'].update('')
         if canvas_elem:
             canvas_elem.get_tk_widget().destroy()
+            reset_ui()
             
     if event == '-DELETE-':
         selected_indices = values['-PARTS_LISTBOX-']
@@ -94,13 +148,14 @@ while True:
             for index in sorted(window['-PARTS_LISTBOX-'].get_indexes(), reverse=True):
                 parts_list.pop(index)
             update_parts_listbox(window, parts_list)
+            reset_ui()
         else:
             sg.popup_error('Пожалуйста, выберите створку для удаления.')
 
     if event == '-CALCULATE-':
         try:
-            roll_width = float(values['-ROLL_WIDTH-'])
-            roll_length = float(values['-ROLL_LENGTH-'])
+            roll_width = int(values['-ROLL_WIDTH-'])
+            roll_length = int(values['-ROLL_LENGTH-'])
 
             all_parts = []
             for part in parts_list:
@@ -206,7 +261,6 @@ while True:
                     writer.writeheader()
                     
                     for row in last_calculation_results:
-                        # --- ИЗМЕНЕНИЕ: Умножаем погонные метры и площадь на количество ---
                         total_running_meters_for_part = row['part_running_meters'] * row['quantity']
                         total_area_for_part = row['part_area_sq_m'] * row['quantity']
                         
