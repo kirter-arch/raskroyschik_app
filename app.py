@@ -5,7 +5,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import csv
 from datetime import datetime
 
-# --- Список для хранения деталей, которые нужно раскроить ---
+# --- Список для хранения створок, которые нужно раскроить ---
 parts_list = []
 
 # --- Глобальные переменные для визуализации и результатов ---
@@ -21,15 +21,15 @@ layout = [
     [sg.Text('Ширина (см):'), sg.Input(key='-ROLL_WIDTH-', default_text='152')],
     [sg.Text('Длина (см):'), sg.Input(key='-ROLL_LENGTH-', default_text='3000')],
     [sg.HorizontalSeparator()],
-    [sg.Text('Детали для раскроя:', font=('Helvetica', 16))],
+    [sg.Text('Створки для раскроя:', font=('Helvetica', 16))],
     [sg.Text('Ширина (см):'), sg.Input(key='-PART_WIDTH-')],
     [sg.Text('Длина (см):'), sg.Input(key='-PART_LENGTH-')],
     [sg.Text('Количество:', size=(10, 1)), sg.Input(key='-PART_QUANTITY-', default_text='1', size=(5, 1))],
-    [sg.Button('Добавить деталь', key='-ADD_PART-')],
+    [sg.Button('Добавить створку', key='-ADD_PART-')],
     [sg.HorizontalSeparator()],
     [sg.Button('Рассчитать', key='-CALCULATE-'), sg.Button('Очистить', key='-CLEAR-'), sg.Button('Удалить выбранную', key='-DELETE-')],
     [sg.Button('Сохранить в CSV', key='-SAVE_CSV-'), sg.Button('Выйти')],
-    [sg.Text('Список добавленных деталей:', font=('Helvetica', 12))],
+    [sg.Text('Список добавленных створок:', font=('Helvetica', 12))],
     [sg.Listbox(values=[], size=(40, 6), key='-PARTS_LISTBOX-', enable_events=True)],
     [sg.HorizontalSeparator()],
     [sg.Text('Результат раскроя:', font=('Helvetica', 16))],
@@ -49,7 +49,7 @@ def draw_figure(canvas, figure):
     canvas_elem.get_tk_widget().pack(side='top', fill='both', expand=1)
 
 def update_parts_listbox(window, parts_list):
-    display_list = [f'Деталь: {int(w)}x{int(h)} см, Количество: {q} шт.' for w, h, q in parts_list]
+    display_list = [f'Створка: {int(w)}x{int(h)} см, Количество: {q} шт.' for w, h, q in parts_list]
     window['-PARTS_LISTBOX-'].update(display_list)
 
 # ---- Цикл обработки событий ----
@@ -95,7 +95,7 @@ while True:
                 parts_list.pop(index)
             update_parts_listbox(window, parts_list)
         else:
-            sg.popup_error('Пожалуйста, выберите деталь для удаления.')
+            sg.popup_error('Пожалуйста, выберите створку для удаления.')
 
     if event == '-CALCULATE-':
         try:
@@ -109,7 +109,7 @@ while True:
                     all_parts.append((width, height))
 
             if not all_parts:
-                sg.popup_error('Список деталей для раскроя пуст.')
+                sg.popup_error('Список створок для раскроя пуст.')
                 continue
 
             packer = newPacker()
@@ -135,6 +135,7 @@ while True:
             ax.set_ylabel("Длина (см)")
 
             last_calculation_results = []
+            part_counts = {}
             
             for abin in packer:
                 abin_used_length = 0
@@ -146,17 +147,21 @@ while True:
                     center_y = rect.y + rect.height / 2
                     ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8)
                     
-                    print(f"  Деталь: {int(rect.width)}x{int(rect.height)} см")
+                    print(f"  Створка: {int(rect.width)}x{int(rect.height)} см")
                     abin_used_length = max(abin_used_length, rect.y + rect.height)
                     abin_used_area += rect.width * rect.height
                     
-                    # --- ИЗМЕНЕНИЕ 1: Собираем данные для экспорта, включая погонные метры (длину) ---
-                    last_calculation_results.append({
-                        'part_width_cm': int(rect.width),
-                        'part_length_cm': int(rect.height),
-                        'part_area_sq_m': (rect.width * rect.height) / 10000,
-                        'part_running_meters': rect.height / 100 # Длина детали в метрах
-                    })
+                    part_key = (int(rect.width), int(rect.height))
+                    if part_key in part_counts:
+                        part_counts[part_key]['quantity'] += 1
+                    else:
+                        part_counts[part_key] = {
+                            'part_width_cm': int(rect.width),
+                            'part_length_cm': int(rect.height),
+                            'part_area_sq_m': (rect.width * rect.height) / 10000,
+                            'part_running_meters': rect.height / 100,
+                            'quantity': 1
+                        }
 
                 total_used_area += abin_used_area
                 abin_efficiency = (abin_used_area / (abin.width * abin.height)) * 100
@@ -167,12 +172,13 @@ while True:
                 print(f"Эффективность раскроя: {abin_efficiency:.2f}%")
                 print("=" * 30)
 
-                # --- ИЗМЕНЕНИЕ 2: Сохраняем общие результаты ---
                 summary_results['total_running_meters'] = abin_used_length / 100
                 summary_results['total_area_sq_m'] = abin_used_area / 10000
                 summary_results['efficiency'] = abin_efficiency
                 summary_results['roll_width'] = abin.width
                 summary_results['roll_length'] = abin.height
+
+            last_calculation_results = list(part_counts.values())
 
             draw_figure(window['-CANVAS-'].TKCanvas, fig)
             plt.close(fig)
@@ -194,15 +200,24 @@ while True:
 
             if filename:
                 with open(filename, 'w', newline='', encoding='utf-8') as f:
-                    # --- ИЗМЕНЕНИЕ 3: Обновленные заголовки для CSV (для деталей) ---
-                    fieldnames = ['part_width_cm', 'part_length_cm', 'part_area_sq_m', 'part_running_meters']
+                    fieldnames = ['Длина (см)', 'Ширина (см)', 'Количество (шт)', 'Погонные метры (м)', 'Площадь (м²)']
                     writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=';')
                     
                     writer.writeheader()
-                    for row in last_calculation_results:
-                        writer.writerow(row)
                     
-                    # --- ИЗМЕНЕНИЕ 4: Записываем общие результаты в конец файла ---
+                    for row in last_calculation_results:
+                        # --- ИЗМЕНЕНИЕ: Умножаем погонные метры и площадь на количество ---
+                        total_running_meters_for_part = row['part_running_meters'] * row['quantity']
+                        total_area_for_part = row['part_area_sq_m'] * row['quantity']
+                        
+                        writer.writerow({
+                            'Длина (см)': row['part_length_cm'],
+                            'Ширина (см)': row['part_width_cm'],
+                            'Количество (шт)': row['quantity'],
+                            'Погонные метры (м)': total_running_meters_for_part,
+                            'Площадь (м²)': total_area_for_part
+                        })
+                    
                     if summary_results:
                         f.write('\n\n')
                         f.write('Общие результаты:\n')
