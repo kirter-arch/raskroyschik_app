@@ -79,7 +79,7 @@ part_quantity_val = st.number_input('Количество:', key='part_quantity'
 # --- Кнопки для добавления/обновления ---
 col1, col2 = st.columns(2)
 with col1:
-    if st.button('Добавить створку', disabled=st.session_state.edit_mode):
+    if st.button('Внести в раскрой', disabled=st.session_state.edit_mode):
         if part_width_val > 0 and part_length_val > 0 and part_quantity_val > 0:
             st.session_state.parts_list.append((part_width_val, part_length_val, part_quantity_val))
             st.rerun()
@@ -87,7 +87,7 @@ with col1:
             st.error('Пожалуйста, введите корректные значения для ширины, длины и количества.')
 
 with col2:
-    if st.button('Обновить створку', disabled=not st.session_state.edit_mode, on_click=update_selected_part):
+    if st.button('Обновить размеры створки', disabled=not st.session_state.edit_mode, on_click=update_selected_part):
         pass # Логика перенесена в on_click
 
 # --- Список добавленных створок ---
@@ -108,7 +108,7 @@ if st.session_state.parts_list:
         st.button('Редактировать выбранную', on_click=set_edit_mode_on)
 
     with col4:
-        st.button('Удалить выбранную створку', on_click=delete_selected_part)
+        st.button('Удалить выбранную', on_click=delete_selected_part)
         
 # --- Кнопка для расчета ---
 st.header('Результат раскроя:')
