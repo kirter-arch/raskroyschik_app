@@ -34,7 +34,42 @@ st.header('Параметры рулона:')
 roll_width = st.number_input('Ширина (см):', value=152, min_value=1, step=1, format="%d")
 roll_length = st.number_input('Длина (см):', value=3000, min_value=1, step=1, format="%d")
 
+# --- Описание интерфейса ---
+st.title('Раскройщик тонировочной пленки')
+
+st.header('Параметры рулона:')
+roll_width = st.number_input('Ширина (см):', value=152, min_value=1, step=1, format="%d")
+roll_length = st.number_input('Длина (см):', value=3000, min_value=1, step=1, format="%d")
+
+# --- Створки для раскроя: ---
 st.header('Створки для раскроя:')
+
+# --- ИЗМЕНЕНИЕ: Функции для кнопок редактирования ---
+def set_edit_mode_on():
+    if st.session_state.selected_part_index is not None:
+        st.session_state.edit_mode = True
+        st.session_state.edit_index = st.session_state.selected_part_index
+        
+        part_to_edit = st.session_state.parts_list[st.session_state.selected_part_index]
+        st.session_state.part_width_edit = part_to_edit[0]
+        st.session_state.part_length_edit = part_to_edit[1]
+        st.session_state.part_quantity_edit = part_to_edit[2]
+
+def delete_selected_part():
+    if st.session_state.selected_part_index is not None:
+        st.session_state.parts_list.pop(st.session_state.selected_part_index)
+        reset_input_fields()
+
+def update_selected_part():
+    if st.session_state.edit_index is not None and st.session_state.part_quantity_edit > 0:
+        st.session_state.parts_list[st.session_state.edit_index] = (
+            st.session_state.parts_list[st.session_state.edit_index][0],
+            st.session_state.parts_list[st.session_state.edit_index][1],
+            st.session_state.part_quantity_edit
+        )
+        reset_input_fields()
+
+# --- Поля для ввода ---
 part_width_val = st.number_input('Ширина (см):', key='part_width', value=st.session_state.part_width_edit, min_value=1, step=1, format="%d", disabled=st.session_state.edit_mode)
 part_length_val = st.number_input('Длина (см):', key='part_length', value=st.session_state.part_length_edit, min_value=1, step=1, format="%d", disabled=st.session_state.edit_mode)
 part_quantity_val = st.number_input('Количество:', key='part_quantity', value=st.session_state.part_quantity_edit, min_value=1, format="%d")
@@ -50,17 +85,8 @@ with col1:
             st.error('Пожалуйста, введите корректные значения для ширины, длины и количества.')
 
 with col2:
-    if st.button('Обновить створку', disabled=not st.session_state.edit_mode):
-        if st.session_state.edit_index is not None and part_quantity_val > 0:
-            st.session_state.parts_list[st.session_state.edit_index] = (
-                st.session_state.parts_list[st.session_state.edit_index][0],
-                st.session_state.parts_list[st.session_state.edit_index][1],
-                part_quantity_val
-            )
-            reset_input_fields()
-            st.rerun()
-        else:
-            st.error('Нечего обновлять или количество указано неверно.')
+    if st.button('Обновить створку', disabled=not st.session_state.edit_mode, on_click=update_selected_part):
+        pass # Логика перенесена в on_click
 
 # --- Список добавленных створок ---
 st.subheader('Список добавленных створок:')
@@ -68,7 +94,6 @@ if st.session_state.parts_list:
     df = pd.DataFrame(st.session_state.parts_list, columns=['Ширина (см)', 'Длина (см)', 'Количество (шт)'])
     st.dataframe(df.set_index(df.columns[0]))
     
-    # --- ИЗМЕНЕНИЕ: Добавляем key для selectbox и делаем его более надежным ---
     st.session_state.selected_part_index = st.selectbox(
         'Выберите створку для действия:',
         options=range(len(st.session_state.parts_list)),
@@ -78,28 +103,10 @@ if st.session_state.parts_list:
     
     col3, col4 = st.columns(2)
     with col3:
-        if st.button('Редактировать выбранную'):
-            if st.session_state.selected_part_index is not None:
-                st.session_state.edit_mode = True
-                st.session_state.edit_index = st.session_state.selected_part_index
-                
-                part_to_edit = st.session_state.parts_list[st.session_state.selected_part_index]
-                st.session_state.part_width_edit = part_to_edit[0]
-                st.session_state.part_length_edit = part_to_edit[1]
-                st.session_state.part_quantity_edit = part_to_edit[2]
-                st.rerun()
-            else:
-                st.warning("Пожалуйста, сначала выберите створку из списка.")
+        st.button('Редактировать выбранную', on_click=set_edit_mode_on)
 
     with col4:
-        if st.button('Удалить выбранную створку'):
-            # --- ИЗМЕНЕНИЕ: сбрасываем состояние после удаления ---
-            if st.session_state.selected_part_index is not None:
-                st.session_state.parts_list.pop(st.session_state.selected_part_index)
-                reset_input_fields()
-                st.rerun()
-            else:
-                st.warning("Пожалуйста, сначала выберите створку из списка.")
+        st.button('Удалить выбранную створку', on_click=delete_selected_part)
         
 # --- Кнопка для расчета ---
 st.header('Результат раскроя:')
@@ -123,22 +130,10 @@ if st.button('Рассчитать'):
         abin_used_length = 0
         abin_used_area = 0
         
-        # --- Визуализация ---
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.set_aspect('equal')
-        ax.set_xlim(0, roll_width)
-        ax.set_ylim(0, abin.height)
-        ax.set_title("Схема раскроя")
-        ax.set_xlabel("Ширина (см)")
-        ax.set_ylabel("Длина (см)")
-        
+        # --- ИЗМЕНЕНИЕ: Сначала рассчитываем использованную длину и площадь ---
+        # Этот блок был перемещен выше
         part_counts = {}
         for rect in abin:
-            ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, edgecolor='black', facecolor='skyblue'))
-            center_x = rect.x + rect.width / 2
-            center_y = rect.y + rect.height / 2
-            ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8)
-            
             abin_used_length = max(abin_used_length, rect.y + rect.height)
             abin_used_area += rect.width * rect.height
             
@@ -154,6 +149,37 @@ if st.button('Рассчитать'):
                     'Площадь (м²)': (rect.width * rect.height) / 10000
                 }
 
+        # --- Визуализация ---
+        # Теперь, когда abin_used_length рассчитана, можно создавать график
+        if abin.width > 0 and abin_used_length > 0:
+            aspect_ratio = abin_used_length / abin.width
+        else:
+            aspect_ratio = 1
+            
+        fig_width = 8
+        fig_height = fig_width * aspect_ratio
+        
+        if fig_height > 15:
+            fig_height = 15
+        
+        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+        ax.set_aspect('equal', adjustable='box')
+        
+        margin = abin.width * 0.02
+        ax.set_xlim(-margin, abin.width + margin)
+        ax.set_ylim(-margin, abin_used_length + margin)
+        
+        ax.set_title("Схема раскроя")
+        ax.set_xlabel("Ширина (см)")
+        ax.set_ylabel("Длина (см)")
+        
+        # --- Отдельный цикл для отрисовки прямоугольников ---
+        for rect in abin:
+            ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, edgecolor='black', facecolor='skyblue'))
+            center_x = rect.x + rect.width / 2
+            center_y = rect.y + rect.height / 2
+            ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8)
+            
         st.pyplot(fig)
         plt.close(fig)
 
