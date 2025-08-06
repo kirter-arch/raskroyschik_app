@@ -1,211 +1,215 @@
 import streamlit as st
-from rectpack import newPacker
 import matplotlib.pyplot as plt
+from rectpack import newPacker
 import pandas as pd
+from sqlalchemy.orm import Session
+from database import engine, Base, get_db
+from models import Client, Supplier, FilmType, Source, OrderStatus, Calculation, Order
 
-# --- Глобальные переменные для хранения состояния приложения ---
-if 'parts_list' not in st.session_state:
-    st.session_state['parts_list'] = []
-if 'edit_mode' not in st.session_state:
-    st.session_state['edit_mode'] = False
-if 'edit_index' not in st.session_state:
-    st.session_state['edit_index'] = None
-if 'part_width_edit' not in st.session_state:
-    st.session_state['part_width_edit'] = 1
-if 'part_length_edit' not in st.session_state:
-    st.session_state['part_length_edit'] = 1
-if 'part_quantity_edit' not in st.session_state:
-    st.session_state['part_quantity_edit'] = 1
-if 'selected_part_index' not in st.session_state:
-    st.session_state['selected_part_index'] = 0
+# Создаем все таблицы, если их еще нет (на всякий случай)
+Base.metadata.create_all(bind=engine)
 
-def reset_input_fields():
-    """Сбрасывает поля ввода к стандартным значениям."""
-    st.session_state.edit_mode = False
-    st.session_state.edit_index = None
-    st.session_state.part_width_edit = 1
-    st.session_state.part_length_edit = 1
-    st.session_state.part_quantity_edit = 1
+def app_main(db: Session):
+    st.title('Vitrium-замеры и CRM')
 
-# --- Описание интерфейса ---
-st.title('Раскройщик тонировочной пленки')
+    # --- Навигация по страницам (в боковой панели) ---
+    st.sidebar.title("Навигация")
+    page = st.sidebar.selectbox("Выберите страницу", ["Калькулятор", "Данные"])
 
-st.info('Приложение работает на бесплатном сервере, поэтому первая загрузка может занять до нескольких минут. Пожалуйста, подождите.')
+    if page == "Калькулятор":
+        calculator_page(db)
+    elif page == "Данные":
+        data_management_page(db)
 
-st.header('Параметры рулона:')
-roll_width = st.number_input('Ширина (см):', key='roll_width_input', value=152, min_value=1, step=1, format="%d")
-roll_length = st.number_input('Длина (см):', key='roll_length_input', value=3000, min_value=1, step=1, format="%d")
+def calculator_page(db: Session):
+    st.subheader('Калькулятор')
 
-# --- Описание интерфейса ---
-st.title('Раскройщик тонировочной пленки')
+    # --- Старая логика калькулятора (пока без использования БД) ---
+    roll_width = st.number_input('Ширина рулона (см)', min_value=1, value=126)
+    roll_length = st.number_input('Длина рулона (см)', min_value=1, value=5000)
 
-st.header('Параметры рулона:')
-roll_width = st.number_input('Ширина (см):', value=152, min_value=1, step=1, format="%d")
-roll_length = st.number_input('Длина (см):', value=3000, min_value=1, step=1, format="%d")
+    # --- Секция для ввода створок ---
+    st.subheader('Створки для раскроя')
+    if 'parts_list' not in st.session_state:
+        st.session_state.parts_list = []
 
-# --- Створки для раскроя: ---
-st.header('Створки для раскроя:')
+    part_width = st.number_input('Ширина створки (см)', min_value=1, value=100)
+    part_height = st.number_input('Высота створки (см)', min_value=1, value=100)
+    part_quantity = st.number_input('Количество', min_value=1, value=1)
 
-# --- ИЗМЕНЕНИЕ: Функции для кнопок редактирования ---
-def set_edit_mode_on():
-    if st.session_state.selected_part_index is not None:
-        st.session_state.edit_mode = True
-        st.session_state.edit_index = st.session_state.selected_part_index
-        
-        part_to_edit = st.session_state.parts_list[st.session_state.selected_part_index]
-        st.session_state.part_width_edit = part_to_edit[0]
-        st.session_state.part_length_edit = part_to_edit[1]
-        st.session_state.part_quantity_edit = part_to_edit[2]
+    if st.button('Добавить створку'):
+        st.session_state.parts_list.append((part_width, part_height, part_quantity))
 
-def delete_selected_part():
-    if st.session_state.selected_part_index is not None:
-        st.session_state.parts_list.pop(st.session_state.selected_part_index)
-        reset_input_fields()
-
-def update_selected_part():
-    if st.session_state.edit_index is not None and st.session_state.part_quantity_edit > 0:
-        st.session_state.parts_list[st.session_state.edit_index] = (
-            st.session_state.parts_list[st.session_state.edit_index][0],
-            st.session_state.parts_list[st.session_state.edit_index][1],
-            st.session_state.part_quantity_edit
-        )
-        reset_input_fields()
-
-# --- Поля для ввода ---
-part_width_val = st.number_input('Ширина (см):', key='part_width', value=st.session_state.part_width_edit, min_value=1, step=1, format="%d", disabled=st.session_state.edit_mode)
-part_length_val = st.number_input('Длина (см):', key='part_length', value=st.session_state.part_length_edit, min_value=1, step=1, format="%d", disabled=st.session_state.edit_mode)
-part_quantity_val = st.number_input('Количество:', key='part_quantity', value=st.session_state.part_quantity_edit, min_value=1, format="%d")
-
-# --- Кнопки для добавления/обновления ---
-col1, col2 = st.columns(2)
-with col1:
-    if st.button('Внести в раскрой', disabled=st.session_state.edit_mode):
-        if part_width_val > 0 and part_length_val > 0 and part_quantity_val > 0:
-            st.session_state.parts_list.append((part_width_val, part_length_val, part_quantity_val))
-            st.rerun()
-        else:
-            st.error('Пожалуйста, введите корректные значения для ширины, длины и количества.')
-
-with col2:
-    if st.button('Обновить размеры створки', disabled=not st.session_state.edit_mode, on_click=update_selected_part):
-        pass # Логика перенесена в on_click
-
-# --- Список добавленных створок ---
-st.subheader('Список добавленных створок:')
-if st.session_state.parts_list:
-    df = pd.DataFrame(st.session_state.parts_list, columns=['Ширина (см)', 'Длина (см)', 'Количество (шт)'])
-    st.dataframe(df.set_index(df.columns[0]))
-    
-    st.session_state.selected_part_index = st.selectbox(
-        'Выберите створку для действия:',
-        options=range(len(st.session_state.parts_list)),
-        index=st.session_state.selected_part_index if st.session_state.selected_part_index < len(st.session_state.parts_list) else len(st.session_state.parts_list) -1,
-        format_func=lambda i: f"Створка: {int(st.session_state.parts_list[i][0])}x{int(st.session_state.parts_list[i][1])} см, Количество: {st.session_state.parts_list[i][2]} шт."
-    )
-    
-    col3, col4 = st.columns(2)
-    with col3:
-        st.button('Редактировать выбранную', on_click=set_edit_mode_on)
-
-    with col4:
-        st.button('Удалить выбранную', on_click=delete_selected_part)
-        
-# --- Кнопка для расчета ---
-st.header('Результат раскроя:')
-if st.button('Рассчитать'):
-    if not st.session_state.parts_list:
-        st.warning('Список створок для раскроя пуст.')
+    # --- Таблица створок ---
+    st.subheader('Список створок')
+    if st.session_state.parts_list:
+        parts_df = pd.DataFrame(st.session_state.parts_list, columns=['Ширина (см)', 'Высота (см)', 'Количество (шт)'])
+        st.dataframe(parts_df)
     else:
-        all_parts = []
-        for part in st.session_state.parts_list:
-            width, height, quantity = part
-            for _ in range(quantity):
-                all_parts.append((width, height))
+        st.info('Список створок для раскроя пуст.')
 
-        packer = newPacker()
-        for part in all_parts:
-            packer.add_rect(part[0], part[1])
-        packer.add_bin(roll_width, roll_length)
-        packer.pack()
+    if st.button('Очистить список'):
+        st.session_state.parts_list = []
+        st.experimental_rerun()
 
-        abin = packer[0]
-        abin_used_length = 0
-        abin_used_area = 0
-        
-        # --- ИЗМЕНЕНИЕ: Сначала рассчитываем использованную длину и площадь ---
-        # Этот блок был перемещен выше
-        part_counts = {}
-        for rect in abin:
-            abin_used_length = max(abin_used_length, rect.y + rect.height)
-            abin_used_area += rect.width * rect.height
-            
-            part_key = (int(rect.width), int(rect.height))
-            if part_key in part_counts:
-                part_counts[part_key]['Количество (шт)'] += 1
-            else:
-                part_counts[part_key] = {
-                    'Длина (см)': int(rect.height),
-                    'Ширина (см)': int(rect.width),
-                    'Количество (шт)': 1,
-                    'Погонные метры (м)': rect.height / 100,
-                    'Площадь (м²)': (rect.width * rect.height) / 10000
-                }
-
-        # --- Визуализация ---
-        # Теперь, когда abin_used_length рассчитана, можно создавать график
-        if abin.width > 0 and abin_used_length > 0:
-            aspect_ratio = abin_used_length / abin.width
+    # --- Кнопка для расчета ---
+    st.header('Результат раскроя:')
+    if st.button('Рассчитать'):
+        if not st.session_state.parts_list:
+            st.warning('Список створок для раскроя пуст.')
         else:
-            aspect_ratio = 1
-            
-        fig_width = 8
-        fig_height = fig_width * aspect_ratio
-        
-        if fig_height > 15:
-            fig_height = 15
-        
-        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-        ax.set_aspect('equal', adjustable='box')
-        
-        margin = abin.width * 0.02
-        ax.set_xlim(-margin, abin.width + margin)
-        ax.set_ylim(-margin, abin_used_length + margin)
-        
-        ax.set_title("Схема раскроя")
-        ax.set_xlabel("Ширина (см)")
-        ax.set_ylabel("Длина (см)")
-        
-        # --- Отдельный цикл для отрисовки прямоугольников ---
-        for rect in abin:
-            ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, edgecolor='black', facecolor='skyblue'))
-            center_x = rect.x + rect.width / 2
-            center_y = rect.y + rect.height / 2
-            ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8)
-            
-        st.pyplot(fig)
-        plt.close(fig)
+            all_parts = []
+            for part in st.session_state.parts_list:
+                width, height, quantity = part
+                for _ in range(quantity):
+                    all_parts.append((width, height))
 
-        # --- Вывод результатов ---
-        st.subheader("Общие результаты")
-        abin_efficiency = (abin_used_area / (abin.width * abin.height)) * 100
-        st.write(f"Использовано погонных метров: **{abin_used_length / 100:.2f} м**")
-        st.write(f"Использовано квадратных метров: **{abin_used_area / 10000:.2f} м²**")
-        st.write(f"Эффективность раскроя: **{abin_efficiency:.2f}%**")
+            packer = newPacker()
+            for part in all_parts:
+                packer.add_rect(part[0], part[1])
+            packer.add_bin(roll_width, roll_length)
+            packer.pack()
+
+            abin = packer[0]
+            abin_used_length = 0
+            abin_used_area = 0
+            
+            part_counts = {}
+            for rect in abin:
+                abin_used_length = max(abin_used_length, rect.y + rect.height)
+                abin_used_area += rect.width * rect.height
+                
+                part_key = (int(rect.width), int(rect.height))
+                if part_key in part_counts:
+                    part_counts[part_key]['Количество (шт)'] += 1
+                else:
+                    part_counts[part_key] = {
+                        'Длина (см)': int(rect.height),
+                        'Ширина (см)': int(rect.width),
+                        'Количество (шт)': 1,
+                        'Погонные метры (м)': rect.height / 100,
+                        'Площадь (м²)': (rect.width * rect.height) / 10000
+                    }
+
+            if abin.width > 0 and abin_used_length > 0:
+                aspect_ratio = abin_used_length / abin.width
+            else:
+                aspect_ratio = 1
+                
+            fig_width = 8
+            fig_height = fig_width * aspect_ratio
+            
+            if fig_height > 15:
+                fig_height = 15
+            
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+            ax.set_aspect('equal', adjustable='box')
+            
+            margin = abin.width * 0.02
+            ax.set_xlim(-margin, abin.width + margin)
+            ax.set_ylim(-margin, abin_used_length + margin)
+            
+            ax.set_title("Схема раскроя")
+            ax.set_xlabel("Ширина (см)")
+            ax.set_ylabel("Длина (см)")
+            
+            for rect in abin:
+                ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, edgecolor='black', facecolor='skyblue'))
+                center_x = rect.x + rect.width / 2
+                center_y = rect.y + rect.height / 2
+                ax.text(center_x, center_y, f'{int(rect.width)}x{int(rect.height)}', ha='center', va='center', fontsize=8)
+                
+            st.pyplot(fig)
+            plt.close(fig)
+
+            st.subheader("Общие результаты")
+            abin_used_area_m2 = abin_used_area / 10000
+            roll_area_m2 = (roll_width * roll_length) / 10000
+            abin_efficiency = (abin_used_area_m2 / roll_area_m2) * 100
+            
+            remaining_length = roll_length - abin_used_length
+            
+            st.write(f"Использовано погонных метров: **{abin_used_length / 100:.2f} м**")
+            st.write(f"Остаток погонных метров: **{remaining_length / 100:.2f} м**")
+            st.write(f"Использовано квадратных метров: **{abin_used_area_m2:.2f} м²**")
+            st.write(f"Эффективность раскроя: **{abin_efficiency:.2f}%**")
+            
+            last_calculation_results = []
+            for part in part_counts.values():
+                part_row = part.copy()
+                part_row['Погонные метры (м)'] *= part_row['Количество (шт)']
+                part_row['Площадь (м²)'] *= part_row['Количество (шт)']
+                last_calculation_results.append(part_row)
+            
+            results_df = pd.DataFrame(last_calculation_results)
+            
+            csv_string = results_df.to_csv(index=False, sep=';', encoding='utf-8-sig')
+            st.download_button(
+                label="Скачать CSV файл",
+                data=csv_string,
+                file_name="результаты_раскроя.csv",
+                mime="text/csv"
+            )
+
+def data_management_page(db: Session):
+    st.subheader('Управление замерами')
+
+    # Отображение данных клиентов
+    st.subheader("Клиенты")
+    clients = db.query(Client).all()
+    if clients:
+        clients_df = pd.DataFrame([{
+            'Имя': c.name,
+            'Телефон': c.phone_number,
+            'Город': c.city,
+            'Адрес': c.address,
+            'Комментарии': c.comments,
+            'Источник': c.source.name if c.source else 'Не указан'
+        } for c in clients])
+        st.dataframe(clients_df)
+    else:
+        st.info("Клиентов пока нет.")
+
+    # Форма для добавления нового клиента
+    with st.form("new_client_form", clear_on_submit=True):
+        st.write("Добавить нового клиента")
         
-        # --- Экспорт в CSV ---
-        last_calculation_results = []
-        for part in part_counts.values():
-            part_row = part.copy()
-            part_row['Погонные метры (м)'] *= part_row['Количество (шт)']
-            part_row['Площадь (м²)'] *= part_row['Количество (шт)']
-            last_calculation_results.append(part_row)
+        # Получаем все источники из базы данных
+        sources = db.query(Source).all()
+        source_names = [s.name for s in sources]
         
-        results_df = pd.DataFrame(last_calculation_results)
+        client_name = st.text_input("Имя")
+        client_phone = st.text_input("Телефон")
+        client_city = st.text_input("Город")
+        client_address = st.text_input("Адрес")
+        client_comments = st.text_area("Комментарии")
         
-        csv_string = results_df.to_csv(index=False, sep=';', encoding='utf-8-sig')
-        st.download_button(
-            label="Скачать CSV файл",
-            data=csv_string,
-            file_name="результаты_раскроя.csv",
-            mime="text/csv"
-        )
+        # Selectbox для выбора источника
+        selected_source_name = st.selectbox("Источник", source_names)
+        
+        submitted = st.form_submit_button("Добавить")
+        
+        if submitted:
+            # Находим ID выбранного источника
+            selected_source = db.query(Source).filter_by(name=selected_source_name).first()
+            
+            new_client = Client(
+                name=client_name,
+                phone_number=client_phone,
+                city=client_city,
+                address=client_address,
+                comments=client_comments,
+                source_id=selected_source.id if selected_source else None
+            )
+            db.add(new_client)
+            db.commit()
+            st.success("Клиент добавлен!")
+            st.rerun()
+
+# --- Главная точка входа в приложение ---
+if __name__ == '__main__':
+    db = get_db()
+    try:
+        app_main(db)
+    finally:
+        db.close()

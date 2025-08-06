@@ -1,4 +1,5 @@
 streamlit
-rectpack
+sqlalchemy
+psycopg2-binary
 pandas
-matplotlib
+rectpack
