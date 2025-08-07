@@ -72,18 +72,6 @@ def calculator_page(db: Session):
         st.session_state.parts_list = []
         st.experimental_rerun()
 
-    # --- Кнопка для расчета ---
-    st.subheader('Список створок')
-    if st.session_state.parts_list:
-        # Обновленная строка для отображения DataFrame
-        parts_df = pd.DataFrame(st.session_state.parts_list)
-        st.dataframe(parts_df)
-    else:
-        st.info('Список створок для раскроя пуст.')
-
-    if st.button('Очистить список', key="clear_list_button"):
-        st.session_state.parts_list = []
-        st.experimental_rerun()
 
     # --- Кнопка для расчета ---
     st.header('Результат раскроя:')
