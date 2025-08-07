@@ -67,6 +67,10 @@ class Calculation(Base):
     __tablename__ = "calculations"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    client_id = Column(Integer, ForeignKey("clients.id"))
+    client = relationship("Client")
+    
     film_type_id = Column(Integer, ForeignKey("film_types.id"))
     film_type = relationship("FilmType")
     
