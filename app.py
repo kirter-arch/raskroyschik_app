@@ -7,7 +7,7 @@ from database import engine, Base, get_db
 from models import Client, Supplier, FilmType, Source, OrderStatus, Calculation, Order
 
 # Создаем все таблицы, если их еще нет (на всякий случай)
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
 
 def app_main(db: Session):
     st.title('Vitrium-замеры и CRM')
