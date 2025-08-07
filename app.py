@@ -122,7 +122,11 @@ def calculator_page(db: Session):
                 selected_client_id = client_names[selected_client_name]
                 new_calculation = Calculation(
                     client_id=selected_client_id,
+                    film_type_id=film_type_id,
+                    total_length_meters=total_linear_meters,
                     total_area_m2=total_area_m2,
+                    price_per_linear_meter_cut=price_per_linear_meter,
+                    cost_of_work=None, # Это поле пока пустое, так как вы его не вычисляете
                     total_price=total_price
                 )
                 db.add(new_calculation)

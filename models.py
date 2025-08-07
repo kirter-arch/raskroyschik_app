@@ -86,10 +86,9 @@ class Calculation(Base):
     total_length_meters = Column(Float)
     total_area_m2 = Column(Float)
     
-    # Это поле теперь просто хранит значение, а не является внешним ключом
     price_per_linear_meter_cut = Column(Float) 
     
-    cost_of_work = Column(Float)
+    cost_of_work = Column(Float, default=1000.0)#здесь меняем цену за работу
     total_price = Column(Float)
     
     created_at = Column(DateTime, default=datetime.utcnow)
