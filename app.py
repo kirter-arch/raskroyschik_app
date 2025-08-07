@@ -73,6 +73,19 @@ def calculator_page(db: Session):
         st.experimental_rerun()
 
     # --- Кнопка для расчета ---
+    st.subheader('Список створок')
+    if st.session_state.parts_list:
+        # Обновленная строка для отображения DataFrame
+        parts_df = pd.DataFrame(st.session_state.parts_list)
+        st.dataframe(parts_df)
+    else:
+        st.info('Список створок для раскроя пуст.')
+
+    if st.button('Очистить список'):
+        st.session_state.parts_list = []
+        st.experimental_rerun()
+
+    # --- Кнопка для расчета ---
     st.header('Результат раскроя:')
     if st.button('Рассчитать и сохранить'):
         if not st.session_state.parts_list:
@@ -82,6 +95,7 @@ def calculator_page(db: Session):
         else:
             all_parts = []
             film_types_used = {}
+            # Обновленная логика для обработки словарей
             for part in st.session_state.parts_list:
                 film_types_used[part['film_type']] = film_type_names[part['film_type']]
                 for _ in range(part['quantity']):
@@ -108,7 +122,6 @@ def calculator_page(db: Session):
                 film_type_name = rect.rid
                 selected_film_type = film_type_names[film_type_name]
                 
-                # Используем только одну цену - за отрез
                 price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
                 
                 total_linear_meters += rect.height / 100
