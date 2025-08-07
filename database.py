@@ -7,7 +7,7 @@ try:
     DATABASE_URL = st.secrets["DATABASE_URL"]
 except:
     # Эта строка будет использоваться для локального запуска (например, для create_db.py)
-    DATABASE_URL = "postgresql://postgres:x500oo@localhost:5432/vitrium_db"
+    DATABASE_URL = "postgresql://postgres:3LRODIsiIOVrC39F@localhost:5432/vitrium_db"
 
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
