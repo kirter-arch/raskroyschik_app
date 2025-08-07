@@ -35,8 +35,11 @@ class FilmType(Base):
     width = Column(Integer, nullable=False)
     length = Column(Integer, nullable=False)
 
-    price_per_linear_meter_cut = Column(Float, nullable=False)
-    price_per_roll = Column(Float, nullable=False)
+    meters_in_roll = Column(Integer, default=30)
+    price_per_linear_meter_cut = Column(Float, nullable=False) # Цена за погонный метр в отрез
+    price_per_roll = Column(Float, nullable=False) # Цена за рулон
+    price_per_linear_meter_roll = Column(Float) # Это поле будет рассчитываться
+
 
     supplier_id = Column(Integer, ForeignKey("suppliers.id"))
     supplier = relationship("Supplier", back_populates="films")
