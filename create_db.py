@@ -1,6 +1,13 @@
 from database import engine, Base
-import models
+from models import Order, Calculation # Импортируем только нужные модели
 
-print("Creating database tables...")
+print("Removing old 'orders' table...")
+Order.__table__.drop(bind=engine, checkfirst=True)
+
+print("Removing old 'calculations' table...")
+Calculation.__table__.drop(bind=engine, checkfirst=True)
+
+print("Creating all tables based on models...")
 Base.metadata.create_all(bind=engine)
-print("Tables created successfully!")
+
+print("Database tables synchronized successfully!")

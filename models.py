@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
-import datetime
+from datetime import datetime
 
 # Клиенты
 class Client(Base):
@@ -9,13 +9,16 @@ class Client(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-    phone_number = Column(String)  # Поле для номера
-    city = Column(String)          # поле для города
-    address = Column(String)       # Поле для адреса
-    comments = Column(String)      # Поле для комментариев
+    phone_number = Column(String)
+    city = Column(String)
+    address = Column(String)
+    comments = Column(String)
     
     source_id = Column(Integer, ForeignKey("sources.id"))
     source = relationship("Source", back_populates="clients")
+    
+    calculations = relationship("Calculation", order_by="Calculation.id", back_populates="client")
+    orders = relationship("Order", order_by="Order.id", back_populates="client")
 
 # Поставщики
 class Supplier(Base):
@@ -24,6 +27,8 @@ class Supplier(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     contact_info = Column(String)
+    
+    films = relationship("FilmType", order_by="FilmType.id", back_populates="supplier")
 
 # Виды пленок
 class FilmType(Base):
@@ -35,11 +40,13 @@ class FilmType(Base):
     width = Column(Integer, nullable=False)
     length = Column(Integer, nullable=False)
 
-    price_per_linear_meter_cut = Column(Float, nullable=False) # Цена за погонный метр в отрез
-    price_per_roll = Column(Float, nullable=False) # Цена за рулон
+    price_per_linear_meter_cut = Column(Float, nullable=False)
+    price_per_roll = Column(Float, nullable=False)
 
     supplier_id = Column(Integer, ForeignKey("suppliers.id"))
     supplier = relationship("Supplier", back_populates="films")
+    
+    calculations = relationship("Calculation", order_by="Calculation.id", back_populates="film_type")
 
     @property
     def price_per_linear_meter_in_roll(self):
@@ -53,7 +60,7 @@ class Source(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-    clients = relationship("Client", order_by=Client.id, back_populates="source")
+    clients = relationship("Client", order_by="Client.id", back_populates="source")
 
 # Справочник для статусов заказа
 class OrderStatus(Base):
@@ -61,6 +68,8 @@ class OrderStatus(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
+    
+    orders = relationship("Order", order_by="Order.id", back_populates="status")
 
 # Таблица для хранения результатов каждого расчета
 class Calculation(Base):
@@ -69,19 +78,23 @@ class Calculation(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     client_id = Column(Integer, ForeignKey("clients.id"))
-    client = relationship("Client")
-    
+    client = relationship("Client", back_populates="calculations")
+
     film_type_id = Column(Integer, ForeignKey("film_types.id"))
-    film_type = relationship("FilmType")
+    film_type = relationship("FilmType", back_populates="calculations")
     
     total_length_meters = Column(Float)
     total_area_m2 = Column(Float)
-    number_of_rolls = Column(Integer)
     
-    price_per_linear_meter = Column(Float)
-    cost_of_film = Column(Float)
+    # Это поле теперь просто хранит значение, а не является внешним ключом
+    price_per_linear_meter_cut = Column(Float) 
+    
     cost_of_work = Column(Float)
     total_price = Column(Float)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    orders = relationship("Order", order_by="Order.id", back_populates="calculation")
 
 # Таблица для заказов
 class Order(Base):
@@ -91,16 +104,14 @@ class Order(Base):
     name = Column(String)
     address = Column(String)
     
-    date_created = Column(DateTime, default=datetime.datetime.utcnow)
+    date_created = Column(DateTime, default=datetime.utcnow)
     date_completed = Column(DateTime)
-    cost = Column(Float) # Итоговая стоимость заказа
+    cost = Column(Float)
 
     client_id = Column(Integer, ForeignKey("clients.id"))
     calculation_id = Column(Integer, ForeignKey("calculations.id"))
     status_id = Column(Integer, ForeignKey("order_statuses.id"))
 
-    client = relationship("Client")
-    calculation = relationship("Calculation")
-    status = relationship("OrderStatus")
-
-Supplier.films = relationship("FilmType", order_by=FilmType.id, back_populates="supplier")
+    client = relationship("Client", back_populates="orders")
+    calculation = relationship("Calculation", back_populates="orders")
+    status = relationship("OrderStatus", back_populates="orders")
