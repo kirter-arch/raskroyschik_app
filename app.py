@@ -38,7 +38,7 @@ def calculator_page(db: Session):
 
     # --- Значения по умолчанию ---
     roll_width = st.number_input('Ширина рулона (см)', min_value=1, value=152)
-    roll_length = st.number_input('Длина рулона (см)', min_value=1, value=30000)
+    roll_length = st.number_input('Длина рулона (см)', min_value=1, value=3000)
 
     # --- Секция для ввода створок ---
     st.subheader('Створки для раскроя')
@@ -121,7 +121,6 @@ def calculator_page(db: Session):
                 selected_client_id = client_names[selected_client_name]
                 new_calculation = Calculation(
                     client_id=selected_client_id,
-                    data=json.dumps({"used_film_types": list(film_types_used.keys()), "total_linear_meters": total_linear_meters}),
                     total_area_m2=total_area_m2,
                     total_price=total_price
                 )
