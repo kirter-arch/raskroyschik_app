@@ -81,7 +81,7 @@ def calculator_page(db: Session):
     else:
         st.info('Список створок для раскроя пуст.')
 
-    if st.button('Очистить список'):
+    if st.button('Очистить список', key="clear_list_button"):
         st.session_state.parts_list = []
         st.experimental_rerun()
 
