@@ -120,13 +120,21 @@ def calculator_page(db: Session):
             # --- Сохранение в базу данных ---
             if selected_client_name:
                 selected_client_id = client_names[selected_client_name]
+
+                # Получаем объект пленки по имени
+                selected_film_type = film_type_names[st.session_state.parts_list[0]['film_type']]
+
+                # Определяем ID пленки, чтобы его можно было использовать
+                film_type_id = selected_film_type.id
+
+                # Создаем новый объект Calculation, передавая все вычисленные значения
                 new_calculation = Calculation(
                     client_id=selected_client_id,
                     film_type_id=film_type_id,
                     total_length_meters=total_linear_meters,
                     total_area_m2=total_area_m2,
                     price_per_linear_meter_cut=price_per_linear_meter,
-                    cost_of_work=None, # Это поле пока пустое, так как вы его не вычисляете
+                    cost_of_work=None,
                     total_price=total_price
                 )
                 db.add(new_calculation)
