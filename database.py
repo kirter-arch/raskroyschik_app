@@ -2,15 +2,18 @@ import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-try:
-    # Пытаемся получить URL из секретов Streamlit Cloud
-    DATABASE_URL = st.secrets["DATABASE_URL"]
-except FileNotFoundError:
-    # Если запущен локально, используем локальный URL
-    DATABASE_URL = "postgresql://postgres:x500oo@localhost:5432/vitrium_db"
+# Приложение будет пытаться получить URL только из секретов Streamlit
+# Если secrets.toml нет, то возникнет ошибка, и это правильно, 
+# потому что приложение не должно работать без подключения к Supabase
+DATABASE_URL = st.secrets["DATABASE_URL"]
 
+# Создаем движок базы данных
 engine = create_engine(DATABASE_URL)
+
+# Создаем базовый класс для наших моделей
 Base = declarative_base()
+
+# Создаем сессию
 Session = sessionmaker(bind=engine)
 
 def get_db():
