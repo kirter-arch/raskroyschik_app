@@ -208,8 +208,6 @@ def data_management_page(db: Session):
 
 # --- Главная точка входа в приложение ---
 if __name__ == '__main__':
-    db = get_db()
-    try:
-        app_main(db)
-    finally:
-        db.close()
+    # Используем with для правильной работы с сессией
+    for db_session in get_db():
+        app_main(db_session)
