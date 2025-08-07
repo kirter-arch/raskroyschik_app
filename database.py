@@ -2,15 +2,17 @@ import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-try:
-    # Эта строка будет работать, когда вы запустите приложение в Streamlit Cloud
-    DATABASE_URL = st.secrets["DATABASE_URL"]
-except:
-    # Эта строка будет использоваться для локального запуска (например, для create_db.py)
-    DATABASE_URL = "postgresql://postgres:3LRODIsiIOVrC39F@localhost:5432/vitrium_db"
+# Теперь приложение будет всегда пытаться получить URL только из секретов Streamlit.
+# Это нужно для правильной работы в Streamlit Cloud.
+DATABASE_URL = st.secrets["DATABASE_URL"]
 
+# Создаем движок базы данных
 engine = create_engine(DATABASE_URL)
+
+# Создаем базовый класс для наших моделей
 Base = declarative_base()
+
+# Создаем сессию
 Session = sessionmaker(bind=engine)
 
 def get_db():
