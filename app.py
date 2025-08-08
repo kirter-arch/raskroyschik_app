@@ -136,29 +136,29 @@ def calculator_page(db: Session):
         st.rerun()
 
     # --- Кнопка для расчета ---
-st.header('Результат раскроя:')
-if st.button('Рассчитать и сохранить'):
-    if not st.session_state.parts_list:
-        st.warning('Список створок для раскроя пуст.')
-    elif not selected_client_name_with_address:
-        st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
-    else:
-        all_parts = []
-        for part in st.session_state.parts_list:
-            for _ in range(part['quantity']):
-                all_parts.append({
-                    'width': part['width'],
-                    'height': part['height'],
-                    'film_type': part['film_type']
-                })
-        
-        packer = newPacker()
-        for part in all_parts:
-            packer.add_rect(part['width'], part['height'], rid=part['film_type'])
-        packer.add_bin(roll_width, roll_length)
-        packer.pack()
+    st.header('Результат раскроя:')
+    if st.button('Рассчитать и сохранить'):
+        if not st.session_state.parts_list:
+            st.warning('Список створок для раскроя пуст.')
+        elif not selected_client_name_with_address:
+            st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
+        else:
+            all_parts = []
+            for part in st.session_state.parts_list:
+                for _ in range(part['quantity']):
+                    all_parts.append({
+                        'width': part['width'],
+                        'height': part['height'],
+                        'film_type': part['film_type']
+                    })
+            
+            packer = newPacker()
+            for part in all_parts:
+                packer.add_rect(part['width'], part['height'], rid=part['film_type'])
+            packer.add_bin(roll_width, roll_length)
+            packer.pack()
 
-        abin = packer[0]
+            abin = packer[0]
         
         # --- Правильный расчет погонных метров и площади ---
         abin_used_length = 0
@@ -191,7 +191,7 @@ if st.button('Рассчитать и сохранить'):
 
         # Ваша утвержденная логика расчета стоимости
         total_price_film = total_linear_meters * price_per_linear_meter
-        total_price = (tprice_per_linear_meter + cost_of_work) * total_linear_meters
+        total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
         
         # --- Визуализация раскроя ---
         st.subheader("Визуализация раскроя")
@@ -242,21 +242,6 @@ if st.button('Рассчитать и сохранить'):
         st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
         st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
         st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
-        st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
-        st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
-
-        # --- Отображение общих результатов ---
-        st.subheader("Общие результаты")
-        st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
-        st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
-        st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
-        st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
-        st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
-
-         # --- Отображение общих результатов ---
-        st.subheader("Общие результаты")
-        st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
-        st.write(f"Использовано квадратных метров: **{total_area_m2:.2f} м²**")
         st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
         st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
 
