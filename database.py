@@ -21,8 +21,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-# код на зменение в supabasa
-import streamlit as st
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker

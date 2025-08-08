@@ -89,6 +89,7 @@ class Calculation(Base):
     price_per_linear_meter_cut = Column(Float) 
     
     cost_of_work = Column(Float, default=1000.0)#здесь меняем цену за работу
+    total_price_film = Column(Float)
     total_price = Column(Float)
     
     created_at = Column(DateTime, default=datetime.utcnow)
