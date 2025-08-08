@@ -156,29 +156,29 @@ def calculator_page(db: Session):
             
             packer = newPacker()
             for part in all_parts:
-                # --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ ---
-                # Всегда передаем меньшую сторону как ширину, а большую - как высоту.
+                # --- ИСПРАВЛЕНО: Гарантируем, что ширина меньше высоты для правильного раскроя ---
                 packer.add_rect(min(part['width'], part['height']), max(part['width'], part['height']), rid=part['film_type'])
             packer.add_bin(roll_width, roll_length)
             packer.pack()
 
             abin = packer[0]
             
-            # --- Правильный расчет погонных метров и площади ---
+            # --- Расчет погонных метров и площади ---
             abin_used_length = 0
-            abin_used_area = 0
             for rect in abin:
                 abin_used_length = max(abin_used_length, rect.y + rect.height)
-                abin_used_area += rect.width * rect.height
             
             total_linear_meters = abin_used_length / 100
 
+            # Расчет общей площади створок
             total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
             total_area_parts_m2 = total_area_parts_cm2 / 10000
             
+            # Расчет использованной площади пленки для эффективности
             total_area_used_cm2 = abin.width * abin_used_length
             total_area_used_m2 = total_area_used_cm2 / 10000
 
+            # Расчет эффективности раскроя
             if total_area_used_m2 > 0:
                 efficiency_percentage = (total_area_parts_m2 / total_area_used_m2) * 100
             else:
@@ -189,6 +189,7 @@ def calculator_page(db: Session):
             price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
             cost_of_work = 1000.0
 
+            # Утвержденная логика расчета стоимости
             total_price_film = total_linear_meters * price_per_linear_meter
             total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
 
