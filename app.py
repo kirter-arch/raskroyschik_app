@@ -15,11 +15,11 @@ def app_main(db: Session):
 
     # --- Навигация по страницам (в боковой панели) ---
     st.sidebar.title("Навигация")
-    page = st.sidebar.selectbox("Выберите страницу", ["Калькулятор", "Данные"])
+    page = st.sidebar.selectbox("Выберите страницу", ["Калькулятор", "Записать клиента"])
 
     if page == "Калькулятор":
         calculator_page(db)
-    elif page == "Данные":
+    elif page == "Записать клиента":
         data_management_page(db)
 
 # app.py
@@ -30,8 +30,15 @@ def calculator_page(db: Session):
     # --- Выбор клиента ---
     st.subheader('Связь с клиентом')
     clients = db.query(Client).all()
-    client_names = {c.name: c.id for c in clients}
-    selected_client_name = st.selectbox("Выберите клиента", [""] + list(client_names.keys()))
+        # Создаем словарь, где ключ - это "Имя (Адрес)", а значение - ID клиента
+    client_options = {f"{c.name} ({c.address})": c.id for c in clients}
+        # Используем этот новый словарь для отображения в selectbox
+    selected_client_name_with_address = st.selectbox("Выберите клиента", [""] + list(client_options.keys()))
+
+    selected_client_id = None
+    if selected_client_name_with_address:
+        # Получаем ID клиента из выбранной опции
+        selected_client_id = client_options[selected_client_name_with_address]
 
     # --- Получение видов пленок из БД ---
     film_types = db.query(FilmType).all()
