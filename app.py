@@ -195,9 +195,9 @@ def calculator_page(db: Session):
             price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
 
             for rect in abin:
-                abin_used_length = max(abin_used_length, rect.y + rect.height)
-                total_linear_meters += rect.height / 100
+                abin_used_length_cm = max(abin_used_length, rect.y + rect.height)
             
+            total_linear_meters = abin_used_length_cm / 100
             total_price_film = total_linear_meters * price_per_linear_meter
             total_area_m2 = sum(r.width * r.height for r in abin) / 10000
 
