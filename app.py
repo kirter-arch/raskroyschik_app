@@ -71,10 +71,27 @@ def calculator_page(db: Session):
     # --- Таблица створок ---
     st.subheader('Список створок')
     if st.session_state.parts_list:
+        
         parts_df = pd.DataFrame(st.session_state.parts_list)
-        parts_df.index = parts_df.index + 1 # Смещаем индекс на 1
-        parts_df.index.name = '№' # Называем столбец "№"
-        st.dataframe(parts_df)
+        parts_df.index = parts_df.index + 1
+        parts_df.index.name = '№'
+        
+        # Используем st.data_editor для редактирования DataFrame
+        edited_df = st.data_editor(
+            parts_df,
+            column_config={
+                "width": st.column_config.NumberColumn("Ширина (см)", format="%.0f"),
+                "height": st.column_config.NumberColumn("Высота (см)", format="%.0f"),
+                "quantity": st.column_config.NumberColumn("Количество", format="%.0f", min_value=1),
+                "film_type": st.column_config.TextColumn("Вид пленки"),
+            },
+            hide_index=False,
+            num_rows="dynamic", # Позволяет добавлять/удалять строки
+        )
+        
+        # Обновляем список створок после редактирования
+        st.session_state.parts_list = edited_df.to_dict('records')
+
     else:
         st.info('Список створок для раскроя пуст.')
 
