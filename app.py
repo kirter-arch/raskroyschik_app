@@ -156,7 +156,9 @@ def calculator_page(db: Session):
             
             packer = newPacker()
             for part in all_parts:
-                packer.add_rect(part['width'], part['height'], rid=part['film_type'])
+                # --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ ---
+                # Всегда передаем меньшую сторону как ширину, а большую - как высоту.
+                packer.add_rect(min(part['width'], part['height']), max(part['width'], part['height']), rid=part['film_type'])
             packer.add_bin(roll_width, roll_length)
             packer.pack()
 
@@ -187,10 +189,9 @@ def calculator_page(db: Session):
             price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
             cost_of_work = 1000.0
 
-            # --- ИСПРАВЛЕННАЯ ЛОГИКА РАСЧЕТА СТОИМОСТИ ---
             total_price_film = total_linear_meters * price_per_linear_meter
             total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
-            
+
             # --- Визуализация раскроя ---
             st.subheader("Визуализация раскроя")
             abin_width = abin.width
