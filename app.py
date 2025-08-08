@@ -122,7 +122,7 @@ def calculator_page(db: Session):
             total_area_m2 = sum(r.width * r.height for r in abin) / 10000
 
             # Расчет стоимости работы и общей стоимости заказа
-            total_price = total_price_film + cost_of_work
+            total_price = (price_per_linear_meter + cost_of_work) * total_area_m2
 
             # --- Сохранение в базу данных ---
             if selected_client_name:
@@ -147,7 +147,7 @@ def calculator_page(db: Session):
             st.write(f"Использовано квадратных метров: **{total_area_m2:.2f} м²**")
             st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
             st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
-            
+
 def data_management_page(db: Session):
     st.subheader('Управление замерами')
 
