@@ -22,20 +22,10 @@ def app_main(db: Session):
     elif page == "Данные":
         data_management_page(db)
 
+# app.py
+
 def calculator_page(db: Session):
     st.subheader('Калькулятор')
-
-    # Инициализируем abin как пустой список
-    abin = [] 
-    price_per_linear_meter = 0
-    total_linear_meters = 0
-    
-    # Значение по умолчанию для стоимости работы
-    cost_of_work = 1000.0 
-
-    # --- Кнопка для расчета ---
-    st.header('Результат раскроя:')
-    if st.button('Рассчитать и сохранить'):
 
     # --- Выбор клиента ---
     st.subheader('Связь с клиентом')
@@ -47,6 +37,12 @@ def calculator_page(db: Session):
     film_types = db.query(FilmType).all()
     film_type_names = {ft.name: ft for ft in film_types}
     film_type_options = list(film_type_names.keys())
+    
+    # Инициализируем abin как пустой список и другие переменные
+    abin = [] 
+    price_per_linear_meter = 0
+    total_linear_meters = 0
+    cost_of_work = 1000.0 
 
     # --- Значения по умолчанию ---
     roll_width = st.number_input('Ширина рулона (см)', min_value=1, value=152)
@@ -84,7 +80,6 @@ def calculator_page(db: Session):
         st.session_state.parts_list = []
         st.rerun()
 
-
     # --- Кнопка для расчета ---
     st.header('Результат раскроя:')
     if st.button('Рассчитать и сохранить'):
@@ -93,38 +88,54 @@ def calculator_page(db: Session):
         elif not selected_client_name:
             st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
         else:
-            # ... (код для расчета раскроя без изменений) ...
+            all_parts = []
+            for part in st.session_state.parts_list:
+                for _ in range(part['quantity']):
+                    all_parts.append({
+                        'width': part['width'],
+                        'height': part['height'],
+                        'film_type': part['film_type']
+                    })
+            
+            packer = newPacker()
+            for part in all_parts:
+                packer.add_rect(part['width'], part['height'], rid=part['film_type'])
+            packer.add_bin(roll_width, roll_length)
+            packer.pack()
 
+            abin = packer[0]
+            abin_used_length = 0
+            
             total_linear_meters = 0
-            total_price_film = 0 # Переименовано
+            total_price_film = 0
+
+            # Получаем ID и цену пленки из первого элемента списка
+            selected_film_type_name = st.session_state.parts_list[0]['film_type']
+            selected_film_type = film_type_names[selected_film_type_name]
+            price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
 
             for rect in abin:
-                # ... (код без изменений) ...
-                
-                price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
-                
+                abin_used_length = max(abin_used_length, rect.y + rect.height)
                 total_linear_meters += rect.height / 100
-                total_price_film += (rect.height / 100) * price_per_linear_meter # Используем новое имя
-
-            # ... (код без изменений) ...
-
-            # Новая логика для расчета общей стоимости заказа
             
-            total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
-            
+            total_price_film = total_linear_meters * price_per_linear_meter
+            total_area_m2 = sum(r.width * r.height for r in abin) / 10000
+
+            # Расчет стоимости работы и общей стоимости заказа
+            total_price = total_price_film + cost_of_work
+
             # --- Сохранение в базу данных ---
             if selected_client_name:
                 selected_client_id = client_names[selected_client_name]
-
                 new_calculation = Calculation(
                     client_id=selected_client_id,
-                    film_type_id=film_type_id,
+                    film_type_id=selected_film_type.id,
                     total_length_meters=total_linear_meters,
                     total_area_m2=total_area_m2,
                     price_per_linear_meter_cut=price_per_linear_meter,
                     cost_of_work=cost_of_work,
-                    total_price_film=total_price_film, # Обновлено
-                    total_price=total_price # Добавлено
+                    total_price_film=total_price_film,
+                    total_price=total_price
                 )
                 db.add(new_calculation)
                 db.commit()
@@ -134,9 +145,9 @@ def calculator_page(db: Session):
             st.subheader("Общие результаты")
             st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
             st.write(f"Использовано квадратных метров: **{total_area_m2:.2f} м²**")
-            st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**") # Обновлено
-            st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**") # Добавлена новая строка
-
+            st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
+            st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
+            
 def data_management_page(db: Session):
     st.subheader('Управление замерами')
 
