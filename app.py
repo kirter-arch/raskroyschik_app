@@ -245,20 +245,20 @@ if st.button('Рассчитать и сохранить'):
         st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
         st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
 
-            # --- Отображение общих результатов ---
-            st.subheader("Общие результаты")
-            st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
-            st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
-            st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
-            st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
-            st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
+        # --- Отображение общих результатов ---
+        st.subheader("Общие результаты")
+        st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
+        st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
+        st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
+        st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
+        st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
 
-            # --- Отображение общих результатов ---
-            st.subheader("Общие результаты")
-            st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
-            st.write(f"Использовано квадратных метров: **{total_area_m2:.2f} м²**")
-            st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
-            st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
+         # --- Отображение общих результатов ---
+        st.subheader("Общие результаты")
+        st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
+        st.write(f"Использовано квадратных метров: **{total_area_m2:.2f} м²**")
+        st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
+        st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
 
 def data_management_page(db: Session):
     st.subheader('Управление замерами')
