@@ -133,7 +133,7 @@ def calculator_page(db: Session):
 
     # --- Кнопка для расчета ---
     st.header('Результат раскроя:')
-        if st.button('Рассчитать и сохранить'):
+    if st.button('Рассчитать и сохранить'):
         if not st.session_state.parts_list:
             st.warning('Список створок для раскроя пуст.')
         elif not selected_client_name_with_address:
