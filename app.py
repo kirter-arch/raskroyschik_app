@@ -156,8 +156,10 @@ def calculator_page(db: Session):
             
             packer = newPacker()
             for part in all_parts:
-                # --- ИСПРАВЛЕНО: Гарантируем, что ширина меньше высоты для правильного раскроя ---
+                # --- ИСПРАВЛЕНИЕ: Гарантируем, что ширина меньше высоты для правильного раскроя ---
+                # Также передаем id для отслеживания типа пленки
                 packer.add_rect(min(part['width'], part['height']), max(part['width'], part['height']), rid=part['film_type'])
+            
             packer.add_bin(roll_width, roll_length)
             packer.pack()
 
@@ -170,16 +172,13 @@ def calculator_page(db: Session):
             
             total_linear_meters = abin_used_length_cm / 100
 
-            # Расчет общей площади створок
             total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
             total_area_parts_m2 = total_area_parts_cm2 / 10000
             
-            # Расчет использованной площади пленки для эффективности
-            abin_width = abin.width # Определение переменной здесь
+            abin_width = abin.width
             total_area_used_cm2 = abin_width * abin_used_length_cm
             total_area_used_m2 = total_area_used_cm2 / 10000
 
-            # Расчет эффективности раскроя
             if total_area_used_m2 > 0:
                 efficiency_percentage = (total_area_parts_m2 / total_area_used_m2) * 100
             else:
