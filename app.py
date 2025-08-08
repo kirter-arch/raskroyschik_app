@@ -27,7 +27,16 @@ def calculator_page(db: Session):
 
     # Инициализируем abin как пустой список
     abin = [] 
+    price_per_linear_meter = 0
+    total_linear_meters = 0
     
+    # Значение по умолчанию для стоимости работы
+    cost_of_work = 1000.0 
+
+    # --- Кнопка для расчета ---
+    st.header('Результат раскроя:')
+    if st.button('Рассчитать и сохранить'):
+
     # --- Выбор клиента ---
     st.subheader('Связь с клиентом')
     clients = db.query(Client).all()
@@ -100,7 +109,7 @@ def calculator_page(db: Session):
             # ... (код без изменений) ...
 
             # Новая логика для расчета общей стоимости заказа
-            cost_of_work = 1000.0 # Используем значение по умолчанию из модели
+            
             total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
             
             # --- Сохранение в базу данных ---
