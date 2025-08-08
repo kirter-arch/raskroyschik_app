@@ -75,6 +75,9 @@ def calculator_page(db: Session):
     price_per_linear_meter = 0
     total_linear_meters = 0
     cost_of_work = 1000.0 
+    # Инициализируем новые переменные
+    abin_width = 0
+    abin_used_length_cm = 0
 
     # --- Значения по умолчанию ---
     roll_width = st.number_input('Ширина рулона (см)', min_value=1, value=152)
