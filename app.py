@@ -190,7 +190,7 @@ def calculator_page(db: Session):
                 )
                 db.add(new_calculation)
                 db.commit()
-                st.success(f"Расчет для клиента '{selected_client_name}' сохранен в базе данных!")
+                st.success(f"Расчет для клиента '{selected_client_name_with_address}' сохранен в базе данных!")
 
             # --- Отображение результатов ---
             st.subheader("Общие результаты")
