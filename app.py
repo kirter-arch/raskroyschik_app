@@ -15,7 +15,7 @@ def app_main(db: Session):
 
     # --- Навигация по страницам (в боковой панели) ---
     st.sidebar.title("Навигация")
-    page = st.sidebar.selectbox("Выберите страницу", ["Калькулятор", "Записать клиента"])
+    page = st.sidebar.selectbox("Выберите страницу", ["Записать клиента", "Калькулятор"])
 
     if page == "Калькулятор":
         calculator_page(db)
