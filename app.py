@@ -133,7 +133,7 @@ def calculator_page(db: Session):
 
     # --- Кнопка для расчета ---
     st.header('Результат раскроя:')
-    if st.button('Рассчитать и сохранить'):
+        if st.button('Рассчитать и сохранить'):
         if not st.session_state.parts_list:
             st.warning('Список створок для раскроя пуст.')
         elif not selected_client_name_with_address:
@@ -156,6 +156,7 @@ def calculator_page(db: Session):
 
             abin = packer[0]
             
+            # --- ИСПРАВЛЕННЫЙ РАСЧЕТ ПОГОННЫХ МЕТРОВ И ЭФФЕКТИВНОСТИ ---
             # Находим максимальную использованную длину рулона (самую высокую точку)
             abin_used_length_cm = 0
             for rect in abin:
@@ -164,8 +165,20 @@ def calculator_page(db: Session):
             # Переводим в метры
             total_linear_meters = abin_used_length_cm / 100
 
-            total_area_m2 = sum(r.width * r.height for r in abin) / 10000
-            
+            # Расчет общей площади створок
+            total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
+            total_area_parts_m2 = total_area_parts_cm2 / 10000
+
+            # Расчет использованной площади пленки
+            total_area_used_cm2 = abin_width * abin_used_length_cm
+            total_area_used_m2 = total_area_used_cm2 / 10000
+
+            # Расчет эффективности раскроя
+            if total_area_used_m2 > 0:
+                efficiency_percentage = (total_area_parts_m2 / total_area_used_m2) * 100
+            else:
+                efficiency_percentage = 0
+
             # Получаем цену за погонный метр из первого элемента списка
             selected_film_type_name = st.session_state.parts_list[0]['film_type']
             selected_film_type = film_type_names[selected_film_type_name]
@@ -209,7 +222,7 @@ def calculator_page(db: Session):
                     client_id=selected_client_id,
                     film_type_id=selected_film_type.id,
                     total_length_meters=total_linear_meters,
-                    total_area_m2=total_area_m2,
+                    total_area_m2=total_area_parts_m2, # Используем площадь всех створок
                     price_per_linear_meter_cut=price_per_linear_meter,
                     cost_of_work=cost_of_work,
                     total_price_film=total_price_film,
@@ -223,6 +236,14 @@ def calculator_page(db: Session):
                 db.commit()
                 
                 st.success(f"Расчет для клиента '{selected_client_name_with_address}' сохранен, заказ обновлен!")
+
+            # --- Отображение общих результатов ---
+            st.subheader("Общие результаты")
+            st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
+            st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
+            st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
+            st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
+            st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
 
             # --- Отображение общих результатов ---
             st.subheader("Общие результаты")
