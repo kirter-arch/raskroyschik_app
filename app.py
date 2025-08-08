@@ -25,6 +25,9 @@ def app_main(db: Session):
 def calculator_page(db: Session):
     st.subheader('Калькулятор')
 
+    # Инициализируем abin как пустой список
+    abin = [] 
+    
     # --- Выбор клиента ---
     st.subheader('Связь с клиентом')
     clients = db.query(Client).all()
