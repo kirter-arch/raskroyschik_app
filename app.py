@@ -160,6 +160,35 @@ def calculator_page(db: Session):
             total_linear_meters = 0
             total_price_film = 0
 
+
+            # --- Визуализация раскроя ---
+            st.subheader("Визуализация раскроя")
+            
+            # Визуализация первого рулона (abin[0])
+            abin_width = abin.width
+            abin_used_length = 0
+            for rect in abin:
+                abin_used_length = max(abin_used_length, rect.y + rect.height)
+                
+            fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length / abin_width))
+            ax.set_title(f"Рулон 1: {abin_width} x {abin_used_length:.2f} см")
+            
+                # Отображаем использованное пространство
+            ax.add_patch(plt.Rectangle((0, 0), abin_width, abin_used_length, fc='#d3d3d3', ec='black'))
+            
+                # Отображаем все створки
+            for rect in abin:
+                color = plt.cm.viridis(hash(rect.rid) % 256 / 256)
+                ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
+                
+            ax.set_xlim(0, abin_width)
+            ax.set_ylim(0, abin_used_length)
+            ax.set_xlabel('Ширина (см)')
+            ax.set_ylabel('Длина (см)')
+            st.pyplot(fig)
+
+            st.write(f"Использованная длина рулона: **{abin_used_length:.2f} см**")
+
             # Получаем ID и цену пленки из первого элемента списка
             selected_film_type_name = st.session_state.parts_list[0]['film_type']
             selected_film_type = film_type_names[selected_film_type_name]
