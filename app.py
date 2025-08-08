@@ -153,12 +153,15 @@ def calculator_page(db: Session):
                         'height': part['height'],
                         'film_type': part['film_type']
                     })
+
+            # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Сортировка деталей по ширине ---
+            # Это заставит библиотеку укладывать самые широкие детали в первую очередь,
+            # что приведет к более эффективному использованию ширины рулона.
+            sorted_parts = sorted(all_parts, key=lambda p: p['width'], reverse=True)
             
             packer = newPacker()
-            for part in all_parts:
-                # --- ИСПРАВЛЕНИЕ: Гарантируем, что ширина меньше высоты для правильного раскроя ---
-                # Также передаем id для отслеживания типа пленки
-                packer.add_rect(min(part['width'], part['height']), max(part['width'], part['height']), rid=part['film_type'])
+            for part in sorted_parts:
+                packer.add_rect(part['width'], part['height'], rid=part['film_type'])
             
             packer.add_bin(roll_width, roll_length)
             packer.pack()
