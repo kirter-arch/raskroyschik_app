@@ -155,58 +155,56 @@ def calculator_page(db: Session):
             packer.pack()
 
             abin = packer[0]
-            abin_used_length = 0
             
-            total_linear_meters = 0
-            total_price_film = 0
-
-
-            # --- Визуализация раскроя ---
-            st.subheader("Визуализация раскроя")
-            
-            # Визуализация первого рулона (abin[0])
-            abin_width = abin.width
-            abin_used_length = 0
+            # Находим максимальную использованную длину рулона (самую высокую точку)
+            abin_used_length_cm = 0
             for rect in abin:
-                abin_used_length = max(abin_used_length, rect.y + rect.height)
-                
-            fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length / abin_width))
-            ax.set_title(f"Рулон 1: {abin_width} x {abin_used_length:.2f} см")
+                abin_used_length_cm = max(abin_used_length_cm, rect.y + rect.height)
             
-                # Отображаем использованное пространство
-            ax.add_patch(plt.Rectangle((0, 0), abin_width, abin_used_length, fc='#d3d3d3', ec='black'))
+            # Переводим в метры
+            total_linear_meters = abin_used_length_cm / 100
+
+            total_area_m2 = sum(r.width * r.height for r in abin) / 10000
             
-                # Отображаем все створки
-            for rect in abin:
-                color = plt.cm.viridis(hash(rect.rid) % 256 / 256)
-                ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
-                
-            ax.set_xlim(0, abin_width)
-            ax.set_ylim(0, abin_used_length)
-            ax.set_xlabel('Ширина (см)')
-            ax.set_ylabel('Длина (см)')
-            st.pyplot(fig)
-
-            st.write(f"Использованная длина рулона: **{abin_used_length:.2f} см**")
-
-            # Получаем ID и цену пленки из первого элемента списка
+            # Получаем цену за погонный метр из первого элемента списка
             selected_film_type_name = st.session_state.parts_list[0]['film_type']
             selected_film_type = film_type_names[selected_film_type_name]
             price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
 
-            for rect in abin:
-                abin_used_length_cm = max(abin_used_length, rect.y + rect.height)
-            
-            total_linear_meters = abin_used_length_cm / 100
+            # Теперь используем правильно рассчитанную длину рулона для расчета стоимости
             total_price_film = total_linear_meters * price_per_linear_meter
-            total_area_m2 = sum(r.width * r.height for r in abin) / 10000
+            
+            # Расчет общей стоимости заказа
+            cost_of_work = 1000.0
+            total_price = total_price_film + cost_of_work
 
-            # Расчет стоимости работы и общей стоимости заказа
-            total_price = (price_per_linear_meter + cost_of_work) * total_area_m2
+            # --- Визуализация раскроя ---
+            st.subheader("Визуализация раскроя")
+            abin_width = abin.width
+            fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length_cm / abin_width))
+            ax.set_title(f"Рулон 1: {abin_width} x {abin_used_length_cm:.2f} см")
+            ax.add_patch(plt.Rectangle((0, 0), abin_width, abin_used_length_cm, fc='#d3d3d3', ec='black'))
+            
+            for rect in abin:
+                color = plt.cm.viridis(hash(rect.rid) % 256 / 256)
+                ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
+            
+            ax.set_xlim(0, abin_width)
+            ax.set_ylim(0, abin_used_length_cm)
+            ax.set_xlabel('Ширина (см)')
+            ax.set_ylabel('Длина (см)')
+            st.pyplot(fig)
+            st.write(f"Использованная длина рулона: **{abin_used_length_cm:.2f} см**")
 
             # --- Сохранение в базу данных ---
             if selected_client_name_with_address:
                 selected_client_id = client_options[selected_client_name_with_address]
+                
+                existing_order = db.query(Order).filter_by(client_id=selected_client_id).first()
+                if not existing_order:
+                    st.error("Ошибка: Не найден заказ для этого клиента.")
+                    st.stop()
+                
                 new_calculation = Calculation(
                     client_id=selected_client_id,
                     film_type_id=selected_film_type.id,
@@ -219,9 +217,14 @@ def calculator_page(db: Session):
                 )
                 db.add(new_calculation)
                 db.commit()
-                st.success(f"Расчет для клиента '{selected_client_name_with_address}' сохранен в базе данных!")
+                
+                existing_order.calculation_id = new_calculation.id
+                existing_order.cost = total_price
+                db.commit()
+                
+                st.success(f"Расчет для клиента '{selected_client_name_with_address}' сохранен, заказ обновлен!")
 
-            # --- Отображение результатов ---
+            # --- Отображение общих результатов ---
             st.subheader("Общие результаты")
             st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
             st.write(f"Использовано квадратных метров: **{total_area_m2:.2f} м²**")
