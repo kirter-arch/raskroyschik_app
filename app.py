@@ -40,6 +40,31 @@ def calculator_page(db: Session):
         # Получаем ID клиента из выбранной опции
         selected_client_id = client_options[selected_client_name_with_address]
 
+    # Эта секция с выбором статуса будет отображаться только после выбора клиента
+    if selected_client_id:
+        existing_order = db.query(Order).filter_by(client_id=selected_client_id).first()
+
+        if existing_order:
+            st.subheader("Управление заказом")
+            statuses = db.query(OrderStatus).all()
+            status_names = [s.name for s in statuses]
+            
+            # Находим текущий статус заказа
+            current_status_name = existing_order.status.name if existing_order.status else status_names[0]
+            
+            selected_status_name = st.selectbox(
+                "Изменить статус:",
+                status_names,
+                index=status_names.index(current_status_name)
+            )
+
+            if st.button("Обновить статус заказа"):
+                new_status = db.query(OrderStatus).filter_by(name=selected_status_name).first()
+                existing_order.status_id = new_status.id
+                db.commit()
+                st.success(f"Статус заказа обновлен на '{selected_status_name}'!")
+                st.rerun()
+
     # --- Получение видов пленок из БД ---
     film_types = db.query(FilmType).all()
     film_type_names = {ft.name: ft for ft in film_types}
@@ -200,6 +225,10 @@ def data_management_page(db: Session):
         # Получаем все источники из базы данных
         sources = db.query(Source).all()
         source_names = [s.name for s in sources]
+
+        # Получаем все статусы из базы данных
+        statuses = db.query(OrderStatus).all()
+        status_names = [s.name for s in statuses]
         
         client_name = st.text_input("Имя")
         client_phone = st.text_input("Телефон")
@@ -207,15 +236,17 @@ def data_management_page(db: Session):
         client_address = st.text_input("Адрес")
         client_comments = st.text_area("Комментарии")
         
-        # Selectbox для выбора источника
+        # Selectbox для выбора источника и статуса
         selected_source_name = st.selectbox("Источник", source_names)
-        
+        selected_status_name = st.selectbox("Статус заказа", status_names)
+
         submitted = st.form_submit_button("Добавить")
         
         if submitted:
             # Находим ID выбранного источника
             selected_source = db.query(Source).filter_by(name=selected_source_name).first()
-            
+            selected_status = db.query(OrderStatus).filter_by(name=selected_status_name).first()
+             # 1. Создаем нового клиента
             new_client = Client(
                 name=client_name,
                 phone_number=client_phone,
@@ -226,6 +257,16 @@ def data_management_page(db: Session):
             )
             db.add(new_client)
             db.commit()
+            # 2. Создаем новый заказ с выбранным статусом и связываем его с клиентом
+            new_order = Order(
+                name=f"Заказ клиента {client_name}",
+                address=client_address,
+                client_id=new_client.id,
+                status_id=selected_status.id if selected_status else None
+            )
+            db.add(new_order)
+            db.commit()
+
             st.success("Клиент добавлен!")
             st.rerun()
 
