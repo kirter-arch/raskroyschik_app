@@ -177,7 +177,7 @@ def calculator_page(db: Session):
 
             # --- Сохранение в базу данных ---
             if selected_client_name_with_address:
-                selected_client_id = client_names[selected_client_name]
+                selected_client_id = client_options[selected_client_name_with_address]
                 new_calculation = Calculation(
                     client_id=selected_client_id,
                     film_type_id=selected_film_type.id,
