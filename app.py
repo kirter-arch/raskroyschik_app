@@ -136,7 +136,7 @@ def calculator_page(db: Session):
     if st.button('Рассчитать и сохранить'):
         if not st.session_state.parts_list:
             st.warning('Список створок для раскроя пуст.')
-        elif not selected_client_name:
+        elif not selected_client_name_with_address:
             st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
         else:
             all_parts = []
@@ -176,7 +176,7 @@ def calculator_page(db: Session):
             total_price = (price_per_linear_meter + cost_of_work) * total_area_m2
 
             # --- Сохранение в базу данных ---
-            if selected_client_name:
+            if selected_client_name_with_address:
                 selected_client_id = client_names[selected_client_name]
                 new_calculation = Calculation(
                     client_id=selected_client_id,
