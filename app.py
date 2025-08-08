@@ -154,14 +154,15 @@ def calculator_page(db: Session):
                         'film_type': part['film_type']
                     })
 
-            # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Сортировка деталей по ширине ---
-            # Это заставит библиотеку укладывать самые широкие детали в первую очередь,
-            # что приведет к более эффективному использованию ширины рулона.
-            sorted_parts = sorted(all_parts, key=lambda p: p['width'], reverse=True)
-            
+            # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Выделяем расчетную логику в отдельный блок ---
+            # Создаем простой список для rectpack, который точно работает
+            parts_for_packing = []
+            for part in all_parts:
+                parts_for_packing.append((part['width'], part['height']))
+
             packer = newPacker()
-            for part in sorted_parts:
-                packer.add_rect(part['width'], part['height'], rid=part['film_type'])
+            for part in parts_for_packing:
+                packer.add_rect(part[0], part[1])
             
             packer.add_bin(roll_width, roll_length)
             packer.pack()
@@ -175,7 +176,7 @@ def calculator_page(db: Session):
             
             total_linear_meters = abin_used_length_cm / 100
 
-            total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
+            total_area_parts_cm2 = sum(p['width'] * p['height'] * p['quantity'] for p in st.session_state.parts_list)
             total_area_parts_m2 = total_area_parts_cm2 / 10000
             
             abin_width = abin.width
