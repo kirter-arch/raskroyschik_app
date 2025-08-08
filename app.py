@@ -72,6 +72,8 @@ def calculator_page(db: Session):
     st.subheader('Список створок')
     if st.session_state.parts_list:
         parts_df = pd.DataFrame(st.session_state.parts_list)
+        parts_df.index = parts_df.index + 1 # Смещаем индекс на 1
+        parts_df.index.name = '№' # Называем столбец "№"
         st.dataframe(parts_df)
     else:
         st.info('Список створок для раскроя пуст.')
