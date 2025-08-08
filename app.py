@@ -164,18 +164,19 @@ def calculator_page(db: Session):
             abin = packer[0]
             
             # --- Расчет погонных метров и площади ---
-            abin_used_length = 0
+            abin_used_length_cm = 0
             for rect in abin:
-                abin_used_length = max(abin_used_length, rect.y + rect.height)
+                abin_used_length_cm = max(abin_used_length_cm, rect.y + rect.height)
             
-            total_linear_meters = abin_used_length / 100
+            total_linear_meters = abin_used_length_cm / 100
 
             # Расчет общей площади створок
             total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
             total_area_parts_m2 = total_area_parts_cm2 / 10000
             
             # Расчет использованной площади пленки для эффективности
-            total_area_used_cm2 = abin.width * abin_used_length
+            abin_width = abin.width # Определение переменной здесь
+            total_area_used_cm2 = abin_width * abin_used_length_cm
             total_area_used_m2 = total_area_used_cm2 / 10000
 
             # Расчет эффективности раскроя
@@ -189,27 +190,25 @@ def calculator_page(db: Session):
             price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
             cost_of_work = 1000.0
 
-            # Утвержденная логика расчета стоимости
             total_price_film = total_linear_meters * price_per_linear_meter
-            total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
+            total_price = total_price_film + cost_of_work
 
             # --- Визуализация раскроя ---
             st.subheader("Визуализация раскроя")
-            abin_width = abin.width
-            fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length / abin_width))
-            ax.set_title(f"Рулон 1: {abin_width} x {abin_used_length:.2f} см")
-            ax.add_patch(plt.Rectangle((0, 0), abin_width, abin_used_length, fc='#d3d3d3', ec='black'))
+            fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length_cm / abin_width))
+            ax.set_title(f"Рулон 1: {abin_width} x {abin_used_length_cm:.2f} см")
+            ax.add_patch(plt.Rectangle((0, 0), abin_width, abin_used_length_cm, fc='#d3d3d3', ec='black'))
             
             for rect in abin:
                 color = plt.cm.viridis(hash(rect.rid) % 256 / 256)
                 ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
             
             ax.set_xlim(0, abin_width)
-            ax.set_ylim(0, abin_used_length)
+            ax.set_ylim(0, abin_used_length_cm)
             ax.set_xlabel('Ширина (см)')
             ax.set_ylabel('Длина (см)')
             st.pyplot(fig)
-            st.write(f"Использованная длина рулона: **{abin_used_length:.2f} см**")
+            st.write(f"Использованная длина рулона: **{abin_used_length_cm:.2f} см**")
 
             # --- Сохранение в базу данных ---
             if selected_client_name_with_address:
