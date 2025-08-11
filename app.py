@@ -146,7 +146,6 @@ def calculator_page(db: Session):
         elif not selected_client_name_with_address:
             st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
         else:
-            # --- ПРАВИЛЬНАЯ ПОДГОТОВКА ДАННЫХ ДЛЯ RECTPACK ---
             parts_for_packing = []
             for part in st.session_state.parts_list:
                 width, height, quantity = part.get('width'), part.get('height'), part.get('quantity')
@@ -154,17 +153,29 @@ def calculator_page(db: Session):
                 for _ in range(quantity):
                     parts_for_packing.append({'width': width, 'height': height, 'rid': film_type})
 
-            packer = newPacker()
+            # --- ИСПРАВЛЕНИЕ 1: Сортируем детали по площади и отключаем вращение ---
+            parts_for_packing.sort(key=lambda p: p['width'] * p['height'], reverse=True)
+            packer = newPacker(rotations=False)
+
             for part in parts_for_packing:
                 packer.add_rect(part['width'], part['height'], rid=part['rid'])
+            
+            # --- ИСПРАВЛЕНИЕ 2: Используем roll_length, как вы и хотели ---
+            roll_length = st.number_input('Длина рулона (см)', min_value=1, value=3000)
             packer.add_bin(roll_width, roll_length)
             packer.pack()
 
-            abin = packer[0]
-
-            # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Используем abin.height для получения правильной длины ---
-            abin_used_length_cm = abin.height
-            total_linear_meters = abin_used_length_cm / 100
+            # --- ИСПРАВЛЕНИЕ 3: Проверяем, все ли детали поместились ---
+            unpacked_rects = packer.rect_list()
+            if unpacked_rects:
+                st.error(f"Не все детали поместились в рулон ({len(unpacked_rects)} шт. не упакованы).")
+                abin = packer[0]
+                abin_used_length_cm = abin.height
+                total_linear_meters = abin_used_length_cm / 100
+            else:
+                abin = packer[0]
+                abin_used_length_cm = abin.height
+                total_linear_meters = abin_used_length_cm / 100
             
             # Расчет общей площади створок
             total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
@@ -186,9 +197,11 @@ def calculator_page(db: Session):
             total_price_film = total_linear_meters * price_per_linear_meter
             total_price = total_price_film + cost_of_work
 
-            # --- ВИЗУАЛИЗАЦИЯ И ВЫВОД РЕЗУЛЬТАТОВ ---
+            # --- ИСПРАВЛЕНИЕ 4: Правильная визуализация, без скроллинга ---
             st.subheader("Визуализация раскроя")
-            fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length_cm / roll_width))
+            # Динамически определяем высоту графика, чтобы он не был слишком большим
+            fig_height = min(15, 10 * abin_used_length_cm / roll_width)
+            fig, ax = plt.subplots(figsize=(10, fig_height))
             ax.set_title(f"Рулон 1: {roll_width} x {abin_used_length_cm:.2f} см")
             ax.add_patch(plt.Rectangle((0, 0), roll_width, abin_used_length_cm, fc='#d3d3d3', ec='black'))
 
@@ -209,7 +222,7 @@ def calculator_page(db: Session):
             st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
             st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
             st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
-            
+        
             # --- СОХРАНЕНИЕ В БАЗУ ДАННЫХ ---
             if selected_client_name_with_address:
                 selected_client_id = client_options[selected_client_name_with_address]
