@@ -138,89 +138,109 @@ def calculator_page(db: Session):
 
 
 # --- Кнопка для расчета ---
-    st.header('Результат раскроя:')
-    if st.button('Рассчитать и сохранить'):
-        if not st.session_state.parts_list:
-            st.warning('Список створок для раскроя пуст.')
-        elif not selected_client_name_with_address:
-            st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
+st.header('Результат раскроя:')
+
+if st.button('Рассчитать и сохранить'):
+    if not st.session_state.parts_list:
+        st.warning('Список створок для раскроя пуст.')
+    elif not selected_client_name_with_address:
+        st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
+    else:
+        # --- 1. ПРАВИЛЬНАЯ ПОДГОТОВКА ДАННЫХ ДЛЯ RECTPACK ---
+        # Создаем простой список кортежей, как в старом коде, чтобы rectpack работал без ошибок.
+        parts_for_packing = []
+        for part in st.session_state.parts_list:
+            width, height, quantity = part.get('width'), part.get('height'), part.get('quantity')
+            film_type = part.get('film_type')
+            for _ in range(quantity):
+                parts_for_packing.append({'width': width, 'height': height, 'rid': film_type})
+
+        packer = newPacker()
+        for part in parts_for_packing:
+            packer.add_rect(part['width'], part['height'], rid=part['rid'])
+        packer.add_bin(roll_width, roll_length)
+        packer.pack()
+
+        abin = packer[0]
+
+        # --- 2. ПРАВИЛЬНЫЙ РАСЧЁТ ПОГОННЫХ МЕТРОВ И ПЛОЩАДИ ---
+        abin_used_length_cm = 0
+        abin_used_area_cm2 = 0
+        
+        for rect in abin:
+            abin_used_length_cm = max(abin_used_length_cm, rect.y + rect.height)
+            abin_used_area_cm2 += rect.width * rect.height
+
+        total_linear_meters = abin_used_length_cm / 100
+        
+        total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
+        total_area_parts_m2 = total_area_parts_cm2 / 10000
+
+        total_area_used_cm2 = roll_width * abin_used_length_cm
+        total_area_used_m2 = total_area_used_cm2 / 10000
+
+        if total_area_used_m2 > 0:
+            efficiency_percentage = (total_area_parts_m2 / total_area_used_m2) * 100
         else:
-            all_parts = []
-            for part in st.session_state.parts_list:
-                for _ in range(part['quantity']):
-                    all_parts.append({
-                        'width': part['width'],
-                        'height': part['height'],
-                        'film_type': part['film_type']
-                    })
+            efficiency_percentage = 0
+        
+        selected_film_type_name = st.session_state.parts_list[0]['film_type']
+        selected_film_type = film_type_names[selected_film_type_name]
+        price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
+        cost_of_work = 1000.0
 
-            # --- НОВЫЙ АЛГОРИТМ РАСКРОЯ: Ручное заполнение строк ---
-            # Сортируем детали по ширине в убывающем порядке для оптимальной укладки
-            sorted_parts = sorted(all_parts, key=lambda p: p['width'], reverse=True)
+        total_price_film = total_linear_meters * price_per_linear_meter
+        total_price = total_price_film + cost_of_work
 
-            current_row_width = 0
-            current_row_height = 0
-            abin_used_length_cm = 0
-            
-            for part in sorted_parts:
-                part_width = part['width']
-                part_height = part['height']
-                
-                if current_row_width + part_width <= roll_width:
-                    # Деталь помещается в текущую строку
-                    current_row_width += part_width
-                    current_row_height = max(current_row_height, part_height)
-                else:
-                    # Строка заполнена, добавляем её высоту к общей длине
-                    abin_used_length_cm += current_row_height
-                    # Начинаем новую строку с текущей детали
-                    current_row_width = part_width
-                    current_row_height = part_height
-            
-            # Добавляем высоту последней строки
-            if current_row_height > 0:
-                abin_used_length_cm += current_row_height
+        # --- 3. ВИЗУАЛИЗАЦИЯ И ВЫВОД РЕЗУЛЬТАТОВ ---
+        st.subheader("Визуализация раскроя")
+        fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length_cm / roll_width))
+        ax.set_title(f"Рулон 1: {roll_width} x {abin_used_length_cm:.2f} см")
+        ax.add_patch(plt.Rectangle((0, 0), roll_width, abin_used_length_cm, fc='#d3d3d3', ec='black'))
 
-            total_linear_meters = abin_used_length_cm / 100
+        for rect in abin:
+            color = plt.cm.viridis(hash(rect.rid) % 256 / 256)
+            ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
 
-            # Расчет общей площади створок
-            total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
-            total_area_parts_m2 = total_area_parts_cm2 / 10000
-            
-            # Расчет использованной площади пленки для эффективности
-            abin_width = roll_width
-            total_area_used_cm2 = abin_width * abin_used_length_cm
-            total_area_used_m2 = total_area_used_cm2 / 10000
+        ax.set_xlim(0, roll_width)
+        ax.set_ylim(0, abin_used_length_cm)
+        ax.set_xlabel('Ширина (см)')
+        ax.set_ylabel('Длина (см)')
+        st.pyplot(fig)
+        st.write(f"Использованная длина рулона: **{abin_used_length_cm:.2f} см**")
+        
+        st.subheader("Общие результаты")
+        st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
+        st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
+        st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
+        st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
+        st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
+        
+        # --- 4. СОХРАНЕНИЕ В БАЗУ ДАННЫХ ---
+        if selected_client_name_with_address:
+            selected_client_id = client_options[selected_client_name_with_address]
+            existing_order = db.query(Order).filter_by(client_id=selected_client_id).first()
+            if not existing_order:
+                st.error("Ошибка: Не найден заказ для этого клиента.")
+                st.stop()
 
-            if total_area_used_m2 > 0:
-                efficiency_percentage = (total_area_parts_m2 / total_area_used_m2) * 100
-            else:
-                efficiency_percentage = 0
-            
-            selected_film_type_name = st.session_state.parts_list[0]['film_type']
-            selected_film_type = film_type_names[selected_film_type_name]
-            price_per_linear_meter = selected_film_type.price_per_linear_meter_cut
-            cost_of_work = 1000.0
+            new_calculation = Calculation(
+                client_id=selected_client_id,
+                film_type_id=selected_film_type.id,
+                total_length_meters=total_linear_meters,
+                total_area_m2=total_area_parts_m2,
+                price_per_linear_meter_cut=price_per_linear_meter,
+                cost_of_work=cost_of_work,
+                total_price_film=total_price_film,
+                total_price=total_price
+            )
+            db.add(new_calculation)
+            db.commit()
 
-            total_price_film = total_linear_meters * price_per_linear_meter
-            total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
-
-
-            # --- Отображение общих результатов ---
-            st.subheader("Общие результаты")
-            st.write(f"Использовано погонных метров: **{total_linear_meters:.2f} м**")
-            st.write(f"Общая площадь створок: **{total_area_parts_m2:.2f} м²**")
-            st.write(f"Эффективность раскроя: **{efficiency_percentage:.2f}%**")
-            st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
-            st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
-
-                       # --- Визуализация раскроя ---
-            # Для этого простого алгоритма невозможно построить сложную визуализацию
-            st.subheader("Визуализация раскроя")
-            st.warning("Визуализация недоступна для этого метода расчета. Этот алгоритм гарантирует правильный расчет погонных метров, но не создает схему раскроя.")           # --- Визуализация раскроя ---
-            # Для этого простого алгоритма невозможно построить сложную визуализацию
-            st.subheader("Визуализация раскроя")
-            st.warning("Визуализация недоступна для этого метода расчета. Этот алгоритм гарантирует правильный расчет погонных метров, но не создает схему раскроя.")
+            existing_order.calculation_id = new_calculation.id
+            existing_order.cost = total_price
+            db.commit()
+            st.success(f"Расчет для клиента '{selected_client_name_with_address}' сохранен, заказ обновлен!")
 
 def data_management_page(db: Session):
     st.subheader('Управление замерами')
