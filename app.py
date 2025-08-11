@@ -146,8 +146,7 @@ def calculator_page(db: Session):
         elif not selected_client_name_with_address:
             st.warning('Пожалуйста, выберите клиента для сохранения расчета.')
         else:
-            # --- 1. ПРАВИЛЬНАЯ ПОДГОТОВКА ДАННЫХ ДЛЯ RECTPACK ---
-            # Создаем простой список кортежей, как в старом коде, чтобы rectpack работал без ошибок.
+            # --- ПРАВИЛЬНАЯ ПОДГОТОВКА ДАННЫХ ДЛЯ RECTPACK ---
             parts_for_packing = []
             for part in st.session_state.parts_list:
                 width, height, quantity = part.get('width'), part.get('height'), part.get('quantity')
@@ -163,16 +162,11 @@ def calculator_page(db: Session):
 
             abin = packer[0]
 
-            # --- 2. ПРАВИЛЬНЫЙ РАСЧЁТ ПОГОННЫХ МЕТРОВ И ПЛОЩАДИ ---
-            abin_used_length_cm = 0
-            abin_used_area_cm2 = 0
-            
-            for rect in abin:
-                abin_used_length_cm = max(abin_used_length_cm, rect.y + rect.height)
-                abin_used_area_cm2 += rect.width * rect.height
-
+            # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Используем abin.height для получения правильной длины ---
+            abin_used_length_cm = abin.height
             total_linear_meters = abin_used_length_cm / 100
             
+            # Расчет общей площади створок
             total_area_parts_cm2 = sum(part['width'] * part['height'] * part['quantity'] for part in st.session_state.parts_list)
             total_area_parts_m2 = total_area_parts_cm2 / 10000
 
@@ -192,7 +186,7 @@ def calculator_page(db: Session):
             total_price_film = total_linear_meters * price_per_linear_meter
             total_price = total_price_film + cost_of_work
 
-            # --- 3. ВИЗУАЛИЗАЦИЯ И ВЫВОД РЕЗУЛЬТАТОВ ---
+            # --- ВИЗУАЛИЗАЦИЯ И ВЫВОД РЕЗУЛЬТАТОВ ---
             st.subheader("Визуализация раскроя")
             fig, ax = plt.subplots(figsize=(10, 20 * abin_used_length_cm / roll_width))
             ax.set_title(f"Рулон 1: {roll_width} x {abin_used_length_cm:.2f} см")
@@ -216,7 +210,7 @@ def calculator_page(db: Session):
             st.write(f"Сумма за пленку: **{total_price_film:.2f} руб.**")
             st.write(f"**Общая стоимость заказа: {total_price:.2f} руб.**")
             
-            # --- 4. СОХРАНЕНИЕ В БАЗУ ДАННЫХ ---
+            # --- СОХРАНЕНИЕ В БАЗУ ДАННЫХ ---
             if selected_client_name_with_address:
                 selected_client_id = client_options[selected_client_name_with_address]
                 existing_order = db.query(Order).filter_by(client_id=selected_client_id).first()
