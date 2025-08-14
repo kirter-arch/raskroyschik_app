@@ -234,6 +234,23 @@ def calculator_page(db: Session) -> None:
         ax.set_ylabel('Длина (см)')
         st.pyplot(fig)
 
+        # --- Блок для вывода текста на график ---
+        text_summary = f"""
+        Использованная длина рулона: {used_length_cm:.2f} см
+        Использовано погонных метров: {total_linear_meters:.2f} м
+        Площадь упакованных створок: {placed_area_m2:.2f} м²
+        Эффективность раскроя: {efficiency_percentage:.2f}%
+        Сумма за пленку: {total_price_film:.2f} руб.
+        Общая стоимость заказа: {total_price:.2f} руб.
+        """
+
+        # Добавляем текст под графиком
+        ax.text(0, -0.15, text_summary, transform=ax.transAxes, fontsize=10, verticalalignment='top')
+
+        # Увеличиваем нижний отступ, чтобы текст поместился
+        fig.subplots_adjust(bottom=0.25)
+        st.pyplot(fig)
+        
         # Подблок: Отображение итогов
         st.subheader("Общие результаты")
         st.write(f"Использованная длина рулона: {used_length_cm:.2f} см")
