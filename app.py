@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Client, FilmType, Source, OrderStatus, Calculation, Order
 import re
+import io
 
 # === Функция: Главная точка входа приложения ===
 def app_main(db: Session) -> None:
@@ -248,6 +249,21 @@ def calculator_page(db: Session) -> None:
 
         # Увеличиваем нижний отступ, чтобы текст поместился
         fig.subplots_adjust(bottom=0.10)
+
+        # --- Сохранение и кнопка скачивания ---
+        # Сохраняем рисунок в буфер памяти
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format='png', bbox_inches='tight')
+        buffer.seek(0) # Перемещаем курсор в начало буфера
+
+        # Создаем кнопку для скачивания
+        st.download_button(
+            label="Скачать рисунок раскроя",
+            data=buffer,
+            file_name="раскрой.png",
+            mime="image/png"
+        )
+
         st.pyplot(fig)
 
         # Подблок: Отображение итогов
