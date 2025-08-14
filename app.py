@@ -90,8 +90,8 @@ def calculator_page(db: Session) -> None:
         st.session_state.parts_list = []
 
     with st.form("add_part_form", clear_on_submit=True):
-        part_width = st.number_input('Ширина створки (см)', min_value=1, value="", step=1)
-        part_height = st.number_input('Высота створки (см)', min_value=1, value="", step=1)
+        part_width = st.text_input('Ширина створки (см)', min_value=1, value="", step=1)
+        part_height = st.text_input('Высота створки (см)', min_value=1, value="", step=1)
         part_quantity = st.number_input('Количество', min_value=1, value=1, step=1)
         selected_film_type_name = st.selectbox("Вид пленки", film_type_options)
 
