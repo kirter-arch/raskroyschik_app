@@ -90,8 +90,8 @@ def calculator_page(db: Session) -> None:
         st.session_state.parts_list = []
 
     with st.form("add_part_form", clear_on_submit=True):
-        part_width = st.number_input('Ширина створки (см)', min_value=1, value=100, step=1)
-        part_height = st.number_input('Высота створки (см)', min_value=1, value=100, step=1)
+        part_width = st.number_input('Ширина створки (см)', min_value=1, value="", step=1)
+        part_height = st.number_input('Высота створки (см)', min_value=1, value="", step=1)
         part_quantity = st.number_input('Количество', min_value=1, value=1, step=1)
         selected_film_type_name = st.selectbox("Вид пленки", film_type_options)
 
@@ -317,13 +317,16 @@ def data_management_page(db: Session) -> None:
         submitted = st.form_submit_button("Добавить")
 
         if submitted:
+            # Очистка номера телефона от всех символов, кроме цифр
+            client_phone_clean = re.sub(r'\D', '', client_phone)
+
             selected_source = db.query(Source).filter_by(name=selected_source_name).first()
             selected_status = db.query(OrderStatus).filter_by(name=selected_status_name).first()
 
             # Создание клиента
             new_client = Client(
                 name=client_name,
-                phone_number=client_phone,
+                phone_number=client_phone_clean,
                 city=client_city,
                 address=client_address,
                 comments=client_comments,
