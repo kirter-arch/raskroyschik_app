@@ -219,7 +219,7 @@ def calculator_page(db: Session) -> None:
 
         # Подблок: Визуализация раскроя
         st.subheader("Визуализация раскроя")
-        fig_height = min(15.0, 10.0 * used_length_cm / max(1.0, float(roll_width)))
+        fig_height = min(20.0, 15.0 * used_length_cm / max(1.0, float(roll_width)))
         fig, ax = plt.subplots(figsize=(10, fig_height))
         ax.set_title(f"Рулон 1: {roll_width} x {used_length_cm:.2f} см")
         ax.add_patch(plt.Rectangle((0, 0), roll_width, used_length_cm, fc='#d3d3d3', ec='black'))
