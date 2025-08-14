@@ -14,7 +14,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Client, FilmType, Source, OrderStatus, Calculation, Order
-
+import re
 
 # === Функция: Главная точка входа приложения ===
 def app_main(db: Session) -> None:
@@ -97,8 +97,8 @@ def calculator_page(db: Session) -> None:
 
         if st.form_submit_button('Добавить створку'):
             st.session_state.parts_list.append({
-                'width': int(part_width),
-                'height': int(part_height),
+                'width': int(part_width) if part_width else 0,
+                'height': int(part_height) if part_height else 0,
                 'quantity': int(part_quantity),
                 'film_type': selected_film_type_name
             })
