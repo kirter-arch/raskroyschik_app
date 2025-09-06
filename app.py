@@ -216,7 +216,7 @@ def calculator_page(db: Session) -> None:
 
         # Подблок: Расчет стоимости
         total_price_film = total_linear_meters * price_per_linear_meter
-        total_price = (price_per_linear_meter + cost_of_work) * total_linear_meters
+        total_price = (price_per_linear_meter + cost_of_work) * total_area_requested_m2
 
         # Подблок: Визуализация раскроя
         st.subheader("Визуализация раскроя")
