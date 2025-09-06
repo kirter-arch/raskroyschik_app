@@ -150,7 +150,7 @@ def calculator_page(db: Session) -> None:
         single_film_type_name = next(iter(film_types_in_list))
         selected_film_type = film_type_by_name[single_film_type_name]
         price_per_linear_meter = float(selected_film_type.price_per_linear_meter_cut)
-        cost_of_work = 1000.0  # фиксированная стоимость работ
+        cost_of_work = 1200.0  # фиксированная стоимость работ
 
         # Подблок: Разворачиваем позиции по количеству и валидируем размеры
         parts_for_packing = []
