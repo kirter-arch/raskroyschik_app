@@ -77,7 +77,7 @@ def calculator_page(db: Session) -> None:
                     st.rerun()
 
     # --- Блок: Виды пленок ---
-    film_types = db.query(FilmType).all()
+    film_types = db.query(FilmType).order_by(FilmType.id).all()
     film_type_by_name = {ft.name: ft for ft in film_types}
     film_type_options = list(film_type_by_name.keys())
 
