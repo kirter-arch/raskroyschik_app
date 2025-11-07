@@ -368,6 +368,50 @@ def data_management_page(db: Session) -> None:
             db.commit()
 
             st.success("Клиент добавлен!")
+
+    # --- Блок: Просмотр сохранённых расчётов ---
+    st.subheader("Сохранённые расчёты")
+    calculations = (
+        db.query(Calculation)
+        .join(Client, Calculation.client_id == Client.id)
+        .join(FilmType, Calculation.film_type_id == FilmType.id)
+        .order_by(Calculation.id.desc())
+        .all()
+    )
+    
+    if calculations:
+        calc_rows = []
+        for calc in calculations:
+            client = db.query(Client).filter(Client.id == calc.client_id).first()
+            film = db.query(FilmType).filter(FilmType.id == calc.film_type_id).first()
+            
+            calc_rows.append({
+                "ID": calc.id,
+                "Клиент": f"{client.name} ({client.address})" if client else "—",
+                "Плёнка": film.name if film else "—",
+                "Пог.м": f"{calc.total_length_meters:.2f}",
+                "Площадь, м²": f"{calc.total_area_m2:.2f}",
+                "Стоимость пленки": f"{calc.total_price_film:.2f} ₽",
+                "Общая сумма": f"{calc.total_price:.2f} ₽",
+                "Дата": calc.created_at.strftime("%d.%m.%Y %H:%M") if hasattr(calc, 'created_at') else "—"
+            })
+        
+        calc_df = pd.DataFrame(calc_rows)
+        # Показываем таблицу без индекса и с красивыми колонками
+        st.dataframe(
+            calc_df,
+            column_config={
+                "ID": st.column_config.NumberColumn("ID", format="%d"),
+                "Пог.м": st.column_config.NumberColumn("Пог.м", format="%.2f"),
+                "Площадь, м²": st.column_config.NumberColumn("Площадь, м²", format="%.2f"),
+                "Стоимость пленки": st.column_config.TextColumn("Плёнка"),
+                "Общая сумма": st.column_config.TextColumn("Итого")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+    else:
+        st.info("Нет сохранённых расчётов.")
             st.rerun()
 
 
