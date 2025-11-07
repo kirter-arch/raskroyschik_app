@@ -182,7 +182,11 @@ def calculator_page(db: Session) -> None:
         for p in parts_for_packing:
             packer.add_rect(p['width'], p['height'], rid=p['rid'])
 
-        packer.add_bin(roll_width, roll_length)
+        # Добавляем до 10 рулонов (бинов), чтобы вместить все детали
+        max_rolls = 100
+        for _ in range(max_rolls):
+            packer.add_bin(roll_width, roll_length)
+
         packer.pack()
 
         if len(packer) == 0:
@@ -190,19 +194,21 @@ def calculator_page(db: Session) -> None:
             return
 
         # Подблок: Проверка упакованных элементов
-        placed_count = len(packer.rect_list())  # список упакованных прямоугольников
+        placed_count = len(packer.rect_list())
         total_requested = len(parts_for_packing)
-        not_placed = total_requested - placed_count
-        if not_placed > 0:
-            st.error(f"Не все детали поместились в рулон: {not_placed} шт. не упакованы.")
+        if placed_count < total_requested:
+            st.error(f"Не удалось разместить все детали даже в {max_rolls} рулонах. Проверьте размеры створок и рулона.")
+            return
 
-        # Подблок: Фактическая использованная длина рулона по первому бину
-        abin = packer[0]
-        used_length_cm = 0
-        for rect in abin:
-            used_length_cm = max(used_length_cm, rect.y + rect.height)
+      # Подблок: Общая использованная длина по всем рулонам
+        total_used_length_cm = 0
+        for abin in packer:
+            if abin:  # пропускаем пустые бины
+                roll_used = max((rect.y + rect.height for rect in abin), default=0)
+                total_used_length_cm += roll_used
 
-        total_linear_meters = used_length_cm / 100.0
+        used_length_cm = total_used_length_cm  # для совместимости с оставшимся кодом
+        total_linear_meters = total_used_length_cm / 100.0
 
         # Подблок: Расчет площадей и эффективности
         total_area_requested_cm2 = sum(p['width'] * p['height'] for p in parts_for_packing)
@@ -218,51 +224,31 @@ def calculator_page(db: Session) -> None:
         total_price_film = total_linear_meters * price_per_linear_meter
         total_price = (price_per_linear_meter + cost_of_work) * total_area_requested_m2
 
-        # Подблок: Визуализация раскроя
+       # Подблок: Визуализация раскроя — для всех рулонов
         st.subheader("Визуализация раскроя")
-        fig_height = min(20.0, 15.0 * used_length_cm / max(1.0, float(roll_width)))
-        fig, ax = plt.subplots(figsize=(10, fig_height))
-        ax.set_title(f"Рулон 1: {roll_width} x {used_length_cm:.2f} см")
-        ax.add_patch(plt.Rectangle((0, 0), roll_width, used_length_cm, fc='#d3d3d3', ec='black'))
 
-        for rect in abin:
-            color = plt.cm.viridis((hash(rect.rid) % 256) / 256.0)
-            ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
+        for roll_index, abin in enumerate(packer):
+            if not abin:  # пропускаем пустые рулоны
+                continue
 
-        ax.set_xlim(0, roll_width)
-        ax.set_ylim(0, used_length_cm)
-        ax.set_xlabel('Ширина (см)')
-        ax.set_ylabel('Длина (см)')
-        
-        # --- Блок для вывода текста на график ---
-        text_summary = f"""
-        Использованная длина рулона: {used_length_cm:.2f} см
-        Использовано погонных метров: {total_linear_meters:.2f} м
-        Площадь упакованных створок: {placed_area_m2:.2f} м²
-        Эффективность раскроя: {efficiency_percentage:.2f}%
-        Сумма за пленку: {total_price_film:.2f} руб.
-        Общая стоимость заказа: {total_price:.2f} руб.
-        """
+            used_length_this_roll = max((rect.y + rect.height for rect in abin), default=0)
+            fig_height = max(6.0, 0.02 * used_length_this_roll)
+            fig, ax = plt.subplots(figsize=(8, fig_height))
+            ax.set_title(f"Рулон {roll_index + 1}: {roll_width} x {used_length_this_roll:.2f} см")
+            ax.add_patch(plt.Rectangle((0, 0), roll_width, used_length_this_roll, fc='#d3d3d3', ec='black'))
 
-        # Добавляем текст под графиком
-        ax.text(0, -0.15, text_summary, transform=ax.transAxes, fontsize=10, verticalalignment='top')
+            for rect in abin:
+                color = plt.cm.tab10(hash(str(rect.rid)) % 10)
+                ax.add_patch(plt.Rectangle((rect.x, rect.y), rect.width, rect.height, fc=color, ec='white', hatch='///'))
 
-        # Увеличиваем нижний отступ, чтобы текст поместился
-        fig.subplots_adjust(bottom=0.10)
-
-        # --- Сохранение и кнопка скачивания ---
-        # Сохраняем рисунок в буфер памяти
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png', bbox_inches='tight')
-        buffer.seek(0) # Перемещаем курсор в начало буфера
-
-        # Создаем кнопку для скачивания
-        st.download_button(
-            label="Скачать рисунок раскроя",
-            data=buffer,
-            file_name="раскрой.png",
-            mime="image/png"
-        )
+            ax.set_xlim(0, roll_width)
+            ax.set_ylim(0, used_length_this_roll)
+            ax.set_xlabel('Ширина (см)')
+            ax.set_ylabel('Длина (см)')
+            
+            # Выводим график
+            st.pyplot(fig)
+            plt.close(fig)  # освобождаем память
 
         st.pyplot(fig)
 
