@@ -412,7 +412,7 @@ def data_management_page(db: Session) -> None:
         )
     else:
         st.info("Нет сохранённых расчётов.")
-            st.rerun()
+        st.rerun()
 
 
 # === Точка входа ===
