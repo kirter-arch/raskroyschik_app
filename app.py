@@ -369,8 +369,9 @@ def data_management_page(db: Session) -> None:
 
             st.success("Клиент добавлен!")
 
-    # --- Блок: Просмотр сохранённых расчётов ---
+    # --- Блок: Просмотр сохранённых расчётов с указанием статуса заказа ---
     st.subheader("Сохранённые расчёты")
+    
     calculations = (
         db.query(Calculation)
         .join(Client, Calculation.client_id == Client.id)
@@ -385,19 +386,23 @@ def data_management_page(db: Session) -> None:
             client = db.query(Client).filter(Client.id == calc.client_id).first()
             film = db.query(FilmType).filter(FilmType.id == calc.film_type_id).first()
             
+            # Находим заказ, связанный с этим расчётом
+            order = db.query(Order).filter(Order.calculation_id == calc.id).first()
+            status_name = order.status.name if order and order.status else "—"
+            
             calc_rows.append({
                 "ID": calc.id,
                 "Клиент": f"{client.name} ({client.address})" if client else "—",
                 "Плёнка": film.name if film else "—",
+                "Статус": status_name,
                 "Пог.м": f"{calc.total_length_meters:.2f}",
                 "Площадь, м²": f"{calc.total_area_m2:.2f}",
                 "Стоимость пленки": f"{calc.total_price_film:.2f} ₽",
                 "Общая сумма": f"{calc.total_price:.2f} ₽",
-                "Дата": calc.created_at.strftime("%d.%m.%Y %H:%M") if hasattr(calc, 'created_at') else "—"
+                "Дата": calc.created_at.strftime("%d.%m.%Y %H:%M")
             })
         
         calc_df = pd.DataFrame(calc_rows)
-        # Показываем таблицу без индекса и с красивыми колонками
         st.dataframe(
             calc_df,
             column_config={
