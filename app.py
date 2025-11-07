@@ -94,7 +94,10 @@ def calculator_page(db: Session) -> None:
         part_width = st.text_input('Ширина створки (см)',  value="")
         part_height = st.text_input('Высота створки (см)',  value="")
         part_quantity = st.number_input('Количество', min_value=1, value=1, step=1)
-        selected_film_type_name = st.selectbox("Вид пленки", film_type_options)
+        # Загружаем последнюю выбранную пленку из session_state, если есть
+        last_film = st.session_state.get("last_selected_film", film_type_options[0] if film_type_options else "")
+        default_index = film_type_options.index(last_film) if last_film in film_type_options else 0
+        selected_film_type_name = st.selectbox("Вид пленки", film_type_options, index=default_index)
 
         if st.form_submit_button('Добавить створку'):
             st.session_state.parts_list.append({
@@ -103,6 +106,7 @@ def calculator_page(db: Session) -> None:
                 'quantity': int(part_quantity),
                 'film_type': selected_film_type_name
             })
+            st.session_state["last_selected_film"] = selected_film_type_name  # ← вот эта строка!
             st.rerun()
 
     # --- Блок: Таблица/редактор створок ---
